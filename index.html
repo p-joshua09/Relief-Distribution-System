@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Front-end prototype for DSWD relief goods distribution." />
+    <title>ReliefLink | DSWD Distribution Station</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:opsz,wght@12..30,400;12..30,500;12..30,600;12..30,700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div>
+          <p class="brand-name">ReliefLink</p>
+          <p class="brand-subtitle">DSWD distribution station</p>
+        </div>
+      </div>
+      <div class="station-meta">
+        <span class="sync-status"><i></i> Secure station</span>
+        <span class="vr"></span>
+        <span>Sta. Mesa, Manila</span>
+        <button class="avatar" aria-label="Open staff account menu">MG</button>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <aside class="side-nav" aria-label="Primary navigation">
+        <p class="nav-caption">Distribution day</p>
+        <nav>
+          <a class="nav-item active" href="#registration"><span class="nav-icon">⌁</span> Register and verify</a>
+          <a class="nav-item" href="#beneficiary"><span class="nav-icon">⌂</span> Beneficiaries</a>
+          <a class="nav-item" href="#eligibility"><span class="nav-icon">✓</span> Eligibility checks</a>
+          <a class="nav-item" href="#claim-history"><span class="nav-icon">◷</span> Claim history</a>
+          <a class="nav-item" href="#distribution"><span class="nav-icon">□</span> Goods release</a>
+        </nav>
+        <div class="side-footer">
+          <span class="help-dot">?</span>
+          <span>Need help? Ask your station lead.</span>
+        </div>
+      </aside>
+
+      <main id="main-content">
+        <section class="registration-screen" id="registration" aria-labelledby="registration-heading">
+          <div class="context-row">
+            <div>
+              <p class="crumb">Active distribution batch</p>
+              <p class="batch-name">Habagat Response · Metro Manila 04</p>
+            </div>
+            <div class="queue-counter"><strong>18</strong><span>people waiting</span></div>
+          </div>
+
+          <div class="registration-grid">
+            <div class="registration-copy">
+              <div class="flow-pill"><span>1</span> Identity checkpoint</div>
+              <h1 id="registration-heading">Begin with the person, not the package.</h1>
+              <p class="lede">Capture a face and fingerprint before entering details. The station checks for previous registrations and claims in this distribution batch.</p>
+              <ol class="quiet-steps" aria-label="Registration process">
+                <li><span>01</span> Capture biometric data</li>
+                <li><span>02</span> Confirm or create the household record</li>
+                <li><span>03</span> Assess eligibility before release</li>
+              </ol>
+            </div>
+
+            <section class="capture-card" aria-labelledby="capture-heading">
+              <div class="capture-header">
+                <div>
+                  <p class="section-kicker">New beneficiary</p>
+                  <h2 id="capture-heading">Biometric registration</h2>
+                </div>
+                <span class="device-state" id="device-state"><i></i> Camera ready</span>
+              </div>
+
+              <div class="capture-tabs" role="tablist" aria-label="Capture method">
+                <button class="capture-tab active" id="face-tab" type="button" role="tab" aria-selected="true" data-capture="face">Face scan</button>
+                <button class="capture-tab" id="finger-tab" type="button" role="tab" aria-selected="false" data-capture="fingerprint">Fingerprint</button>
+              </div>
+
+              <div class="scanner" id="scanner" aria-live="polite">
+                <div class="face-frame" id="face-frame" aria-hidden="true">
+                  <span class="frame-corner corner-tl"></span><span class="frame-corner corner-tr"></span><span class="frame-corner corner-bl"></span><span class="frame-corner corner-br"></span>
+                  <div class="portrait-silhouette"><span class="head"></span><span class="shoulders"></span></div>
+                  <span class="scan-line"></span>
+                </div>
+                <div class="fingerprint-mark" id="fingerprint-mark" aria-hidden="true">⌁</div>
+                <p class="scanner-label" id="scanner-label">Position face inside the guide</p>
+              </div>
+
+              <div class="capture-actions">
+                <button type="button" class="btn btn-primary capture-button" id="capture-button">Capture face scan</button>
+                <button type="button" class="btn btn-link text-button" id="manual-button">Enter existing ID</button>
+              </div>
+              <p class="privacy-note">Biometric data is used only to confirm identity and prevent duplicate relief claims.</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="workflow-section hidden" id="match-result" aria-labelledby="match-heading">
+          <div class="result-band">
+            <div class="result-icon">✓</div>
+            <div>
+              <p class="section-kicker">Identity check complete</p>
+              <h2 id="match-heading">No match found in this batch</h2>
+              <p>Capture quality passed. Create the beneficiary record to continue.</p>
+            </div>
+            <button class="btn btn-dark" id="create-record-button" type="button">Create beneficiary record</button>
+          </div>
+        </section>
+
+        <section class="workflow-section hidden" id="beneficiary" aria-labelledby="beneficiary-heading">
+          <div class="section-heading-row">
+            <div>
+              <p class="section-kicker">Step 2 of 3</p>
+              <h2 id="beneficiary-heading">Beneficiary and household details</h2>
+              <p>Use a household record to link relatives and avoid duplicate assistance.</p>
+            </div>
+            <span class="record-chip">Draft record</span>
+          </div>
+
+          <div class="details-layout">
+            <form class="details-form" id="beneficiary-form">
+              <div class="form-section-title">Personal details</div>
+              <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="first-name">First name</label><input class="form-control" id="first-name" value="Marites" required /></div>
+                <div class="col-md-6"><label class="form-label" for="last-name">Last name</label><input class="form-control" id="last-name" value="Santos" required /></div>
+                <div class="col-md-4"><label class="form-label" for="birth-date">Birth date</label><input class="form-control" id="birth-date" type="date" value="1982-04-17" /></div>
+                <div class="col-md-4"><label class="form-label" for="sex">Sex</label><select class="form-select" id="sex"><option>Female</option><option>Male</option><option>Prefer not to say</option></select></div>
+                <div class="col-md-4"><label class="form-label" for="income">Monthly household income</label><select class="form-select" id="income"><option>Below ₱10,000</option><option>₱10,000–₱20,000</option><option>Above ₱20,000</option></select></div>
+              </div>
+              <div class="form-section-title mt-4">Current location</div>
+              <div class="row g-3">
+                <div class="col-md-7"><label class="form-label" for="address">Street / sitio</label><input class="form-control" id="address" value="P. Sanchez Street" /></div>
+                <div class="col-md-5"><label class="form-label" for="barangay">Barangay</label><input class="form-control" id="barangay" value="Barangay 587" /></div>
+                <div class="col-md-6"><label class="form-label" for="city">City / municipality</label><input class="form-control" id="city" value="Manila" /></div>
+                <div class="col-md-6"><label class="form-label" for="contact">Mobile number</label><input class="form-control" id="contact" placeholder="Optional" /></div>
+              </div>
+              <div class="form-actions"><button class="btn btn-primary" type="submit">Save and assess eligibility</button><button class="btn btn-link text-button" type="button">Save as draft</button></div>
+            </form>
+
+            <aside class="household-panel" aria-labelledby="household-heading">
+              <div class="household-heading"><div><p class="section-kicker">Linked people</p><h3 id="household-heading">Santos household</h3></div><button class="add-person" type="button" id="add-person-button" aria-label="Add linked beneficiary">+</button></div>
+              <p class="household-address">P. Sanchez Street, Barangay 587</p>
+              <ul class="household-list" id="household-list">
+                <li><span class="person-avatar orange">MS</span><div><strong>Marites Santos</strong><small>Primary beneficiary · 44</small></div><span class="relationship-tag">Self</span></li>
+                <li><span class="person-avatar blue">JS</span><div><strong>Jose Santos</strong><small>Household member · 47</small></div><span class="relationship-tag">Spouse</span></li>
+                <li><span class="person-avatar green">AS</span><div><strong>Angela Santos</strong><small>Household member · 13</small></div><span class="relationship-tag">Daughter</span></li>
+              </ul>
+              <div class="household-note"><span>i</span><p>One household shares one relief package per active batch, subject to program rules.</p></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="workflow-section hidden" id="eligibility" aria-labelledby="eligibility-heading">
+          <div class="eligibility-card">
+            <div class="eligibility-intro"><p class="section-kicker">Step 3 of 3</p><h2 id="eligibility-heading">Eligibility assessment</h2><p>Review the result before preparing any relief package.</p></div>
+            <div class="eligibility-status"><span class="status-check">✓</span><div><strong>Eligible for release</strong><span>No recorded claim in Habagat Response · Metro Manila 04</span></div></div>
+            <div class="rule-list"><div><span>✓</span> Identity verified</div><div><span>✓</span> Household profile complete</div><div><span>✓</span> No claim in active batch</div></div>
+            <button class="btn btn-primary" type="button" id="release-button">Prepare relief package</button>
+          </div>
+        </section>
+
+        <section class="workflow-section hidden" id="distribution" aria-labelledby="distribution-heading">
+          <div class="release-card"><div class="release-badge">✓</div><div><p class="section-kicker">Ready for handover</p><h2 id="distribution-heading">Relief package prepared</h2><p>Marites Santos may now receive one standard family food package. Confirm the handover at the release desk.</p></div><button type="button" class="btn btn-dark" id="confirm-release">Confirm release</button></div>
+        </section>
+
+        <section class="workflow-section claim-history hidden" id="claim-history" aria-labelledby="claims-heading">
+          <div class="section-heading-row"><div><p class="section-kicker">Beneficiary record</p><h2 id="claims-heading">Claim history</h2></div></div>
+          <div class="empty-history"><span>◷</span><p>No claims recorded for this beneficiary.</p></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"><div class="toast" id="app-toast" role="status" aria-live="polite" aria-atomic="true"><div class="toast-body"><span class="toast-tick">✓</span><span id="toast-message">Saved</span><button type="button" class="btn-close ms-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s0JfEsi4hc8zHlvbPg55n2oV0yQ9B0dH0zJfG4C0d" crossorigin="anonymous"></script>
+    <script src="assets/js/app.js"></script>
+  </body>
+</html>
