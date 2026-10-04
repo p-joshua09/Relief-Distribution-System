@@ -5,18 +5,48 @@
   const captureButton = document.querySelector('#capture-button');
   const deviceState = document.querySelector('#device-state');
   const toastElement = document.querySelector('#app-toast');
-  const toast = new bootstrap.Toast(toastElement, { delay: 3500 });
+  const toast = window.bootstrap?.Toast
+    ? new window.bootstrap.Toast(toastElement, { delay: 3500 })
+    : {
+        show() {
+          toastElement.classList.add('show');
+          window.setTimeout(() => toastElement.classList.remove('show'), 3500);
+        },
+      };
+  const navigationItems = document.querySelectorAll('.nav-item');
 
   function showToast(message) {
     document.querySelector('#toast-message').textContent = message;
     toast.show();
   }
 
-  function reveal(id) {
+  function setActiveNavigation(id) {
+    navigationItems.forEach((item) => {
+      const isActive = item.getAttribute('href') === id;
+      item.classList.toggle('active', isActive);
+      if (isActive) {
+        item.setAttribute('aria-current', 'page');
+      } else {
+        item.removeAttribute('aria-current');
+      }
+    });
+  }
+
+  function reveal(id, updateUrl = false) {
     const section = document.querySelector(id);
+    if (!section) return;
     section.classList.remove('hidden');
+    setActiveNavigation(id);
+    if (updateUrl) history.replaceState(null, '', id);
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  navigationItems.forEach((item) => {
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      reveal(item.getAttribute('href'), true);
+    });
+  });
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
@@ -62,4 +92,10 @@
     reveal('#claim-history');
   });
   document.querySelector('#add-person-button').addEventListener('click', () => showToast('Link a person after completing their identity check'));
+
+  if (window.location.hash && document.querySelector(window.location.hash)) {
+    reveal(window.location.hash);
+  } else {
+    setActiveNavigation('#registration');
+  }
 })();
