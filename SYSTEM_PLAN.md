@@ -149,13 +149,15 @@ Personnel need a clear status for the camera, fingerprint scanner, printer, netw
 
 ## Suggested end-to-end workflow
 
-1. Staff signs in and selects the active distribution activity.
-2. Staff explains the privacy notice and records consent.
-3. Staff searches for the beneficiary using biometrics or personal information.
-4. Staff confirms the existing record or creates a new beneficiary and household profile.
-5. The system retrieves individual and household claim history.
-6. The system applies the active eligibility rules and explains the result.
-7. A supervisor reviews exceptions when required.
-8. Release personnel confirm the assigned package and available stock.
-9. The beneficiary receives the goods and acknowledges receipt.
-10. The system records the transaction, updates inventory, and writes the audit log.
+1. The system opens the registration screen before other workspace options, even when an old workspace URL is present.
+2. The beneficiary confirms whether this is their first registration. **New registration** opens the general-details form; an already registered beneficiary continues to the verification counter.
+3. New beneficiaries provide their full name, date of birth (with calculated age), sex/gender, civil status, address and region/province/city/barangay, household income and monthly/annual period, household member count, contact information, and an optional valid ID reference. The system saves a registered profile before a claim can proceed.
+4. At the counter, staff records the privacy acknowledgment and identifies the registered profile. The production system captures face/fingerprint input and compares it to the approved registered database; the front-end prototype explicitly simulates verification for the selected saved profile.
+5. The system retrieves the beneficiary profile and individual/household claim history, distinguishing previous batches from the active distribution batch.
+6. The system checks the registered profile, verification, activity coverage, current-batch claim limit, and available stock. A current-batch claim blocks another release; a previous-batch claim alone does not.
+7. DSWD personnel reviews the eligible profile and allotted relief package. A supervisor handles exceptions in the production system.
+8. The releasing personnel enters or confirms their name and staff ID, hands over the goods, and records the beneficiary acknowledgment.
+9. The system records one transaction with the registered beneficiary, batch ID/name, goods and quantity, date/time, verification method, and personnel snapshot. It updates claim history and current-batch inventory together and prevents a second submission.
+10. The system displays a successful distribution confirmation and a printable receipt containing the same transaction and personnel details.
+
+The current implementation keeps fictional records and transactions in memory. Refreshing resets the sample workspace. Live biometric capture, database matching, staff authentication, and durable transaction storage remain production integrations; the prototype does not collect biometric data or imply a real biometric match.

@@ -3,184 +3,160 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Front-end prototype for DSWD relief goods distribution." />
-    <title>DSWD Relief Goods Distribution System</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:opsz,wght@12..30,400;12..30,500;12..30,600;12..30,700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
-    <link rel="stylesheet" href="assets/css/styles.css" />
+    <meta name="theme-color" content="#191f60" />
+    <meta name="description" content="A DSWD relief distribution front-end prototype for beneficiary registration, household assessment, and goods release." />
+    <title>DSWD · Relief Goods Distribution System</title>
+    <link rel="icon" type="image/png" href="assets/branding/dswd-mark.png" />
+    <link rel="stylesheet" href="assets/css/styles.css?v=4" />
+    <script src="assets/js/app.js?v=4" defer></script>
   </head>
-  <body>
+  <body class="registration-first">
+    <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0">
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v3"/></symbol>
+      <symbol id="i-scan" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3M2 12h20"/><circle cx="12" cy="8" r="2"/><path d="M8 17a4 4 0 0 1 8 0"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-package" viewBox="0 0 24 24"><path d="m12 3 9 5v9l-9 5-9-5V8l9-5ZM3 8l9 5 9-5M12 13v9M7.5 5.5l9 5V15"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 17h.01"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></symbol>
+      <symbol id="i-fingerprint" viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 16 0M2 14v-3M22 11v4M7 21c2-3 1-6 1-9a4 4 0 0 1 8 0c0 4 0 7-2 10M4 19c1-2 1-4 1-7a7 7 0 0 1 14 0c0 4 0 6-1 8M11 20c1-2 1-5 1-8M21 19v-2"/></symbol>
+      <symbol id="i-face" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M8 9h.01M16 9h.01M12 9v4h-1M8 16c2 2 6 2 8 0"/></symbol>
+      <symbol id="i-location" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+      <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H3V9h18v8h-4M7 14h10v7H7zM17 11h.01"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3ZM12 9v5M12 17h.01"/></symbol>
+    </svg>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-
-    <header class="topbar">
-      <div class="gov-banner"><span>Republic of the Philippines</span><a href="#main-content">Skip to main content</a></div>
-      <div class="masthead">
-      <div class="brand-lockup">
-        <div class="brand-mark" aria-hidden="true"><span class="sun"></span><span class="seal-text">DSWD</span></div>
-        <div>
-          <p class="brand-name">Department of Social Welfare and Development</p>
-          <p class="brand-subtitle">Relief Goods Distribution System</p>
-        </div>
-      </div>
-      <div class="station-meta">
-        <span class="sync-status"><i></i> System secure</span>
-        <span class="vr"></span>
-        <span>Sta. Mesa, Manila</span>
-        <button class="avatar" aria-label="Open staff account menu">MG</button>
-      </div>
-      </div>
-    </header>
-
-    <div class="app-shell">
-      <aside class="side-nav" aria-label="Primary navigation">
-        <p class="nav-caption">Main menu</p>
-        <nav>
-          <a class="nav-item active" href="#registration"><span class="nav-icon">⌁</span> Register and verify</a>
-          <a class="nav-item" href="#beneficiary"><span class="nav-icon">⌂</span> Beneficiaries</a>
-          <a class="nav-item" href="#eligibility"><span class="nav-icon">✓</span> Eligibility checks</a>
-          <a class="nav-item" href="#claim-history"><span class="nav-icon">◷</span> Claim history</a>
-          <a class="nav-item" href="#distribution"><span class="nav-icon">□</span> Goods release</a>
-        </nav>
-        <div class="side-footer">
-          <span class="help-dot">?</span>
-          <span>Help desk: contact your station lead.</span>
-        </div>
-      </aside>
-
-      <main id="main-content">
-        <section class="registration-screen" id="registration" aria-labelledby="registration-heading">
-          <div class="context-row">
-            <div>
-              <p class="crumb">Current distribution activity</p>
-              <p class="batch-name">Habagat Response — Metro Manila 04</p>
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <a class="brand-lockup" href="#overview" data-view-link="overview" aria-label="DSWD distribution overview"><span class="agency-logo-surface"><img class="dswd-logo" src="assets/branding/dswd-logo.png" alt="Department of Social Welfare and Development" width="939" height="265" /></span><span class="brand-subtitle">Relief Goods Distribution System</span></a>
+      <p class="sidebar-caption">WORKSPACE</p>
+      <nav class="main-nav">
+        <a class="nav-item" href="#overview" data-view-link="overview"><svg class="nav-icon icon" aria-hidden="true"><use href="#i-grid"/></svg>Overview</a>
+        <a class="nav-item active" href="#registration" data-view-link="registration" aria-current="page"><svg class="nav-icon icon" aria-hidden="true"><use href="#i-scan"/></svg>Register &amp; verify</a>
+        <a class="nav-item" href="#beneficiaries" data-view-link="beneficiaries"><svg class="nav-icon icon" aria-hidden="true"><use href="#i-users"/></svg>Beneficiaries</a>
+        <a class="nav-item" href="#claims" data-view-link="claims"><svg class="nav-icon icon" aria-hidden="true"><use href="#i-clock"/></svg>Claim history</a>
+        <a class="nav-item" href="#inventory" data-view-link="inventory"><svg class="nav-icon icon" aria-hidden="true"><use href="#i-package"/></svg>Relief inventory</a>
+      </nav>
+      <div class="sidebar-activity"><span class="status-dot"></span><p>ACTIVE DISTRIBUTION<strong>Habagat Response</strong><span>Metro Manila · Activity 04</span></p></div>
+      <div class="sidebar-bottom"><button class="nav-item" type="button" data-action="show-help"><svg class="nav-icon icon" aria-hidden="true"><use href="#i-help"/></svg>Help &amp; guidance</button><div class="demo-note"><span class="badge" data-tone="neutral">Demo workspace</span><p>Sample records. Changes last until this page is refreshed.</p></div><div class="staff-profile"><span class="avatar">MG</span><div><strong>Maria Garcia</strong><span>Distribution officer · Demo</span></div></div></div>
+    </aside>
+    <button id="nav-backdrop" class="nav-backdrop" aria-label="Close navigation" hidden></button>
+    <div class="workspace">
+      <header class="topbar"><div class="topbar-left"><button class="icon-button menu-toggle" id="menu-toggle" type="button" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button><a class="header-brand" href="#overview" data-view-link="overview" aria-label="DSWD distribution overview"><img class="dswd-logo" src="assets/branding/dswd-logo.png" alt="Department of Social Welfare and Development" width="939" height="265" /></a><div class="workspace-path"><span>Workspace</span><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg><strong id="page-label">Beneficiary intake</strong></div></div><div class="station-meta"><span class="station-location"><svg class="icon" aria-hidden="true"><use href="#i-location"/></svg>Sta. Mesa, Manila</span><span class="badge station-badge" data-tone="success"><span class="status-dot"></span>Station 04</span><img class="bagong-pilipinas-logo" src="assets/branding/bagong-pilipinas-logo.png" alt="Bagong Pilipinas" width="692" height="648" /></div></header>
+      <main class="workspace-content" id="main-content" tabindex="-1">
+        <noscript><div class="notice" data-tone="warning">Enable JavaScript to use registration, search, and release actions in this prototype.</div></noscript>
+        <section class="view" id="overview" data-view="overview" aria-labelledby="overview-heading" hidden>
+          <div class="page-heading"><div><p class="eyebrow">READY TO MAKE A DIFFERENCE</p><h1 id="overview-heading">Distribution overview</h1><p>Keep every household and every handover in view.</p></div><button class="button primary" type="button" data-action="start-registration"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Register beneficiary</button></div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-top"><span>Registered households</span><span class="stat-icon" data-tone="neutral"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg></span></div><strong class="stat-value" id="stat-households">8</strong><p class="stat-note">In this distribution activity</p></article>
+            <article class="stat-card"><div class="stat-top"><span>Packages distributed</span><span class="stat-icon" data-tone="success"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg></span></div><strong class="stat-value" id="stat-released">4</strong><p class="stat-note"><span class="mini-dot"></span>Confirmed handovers</p></article>
+            <article class="stat-card"><div class="stat-top"><span>Ready for assessment</span><span class="stat-icon" data-tone="blue"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span></div><strong class="stat-value" id="stat-ready">3</strong><p class="stat-note">Registered, awaiting release checks</p></article>
+            <article class="stat-card"><div class="stat-top"><span>Needs review</span><span class="stat-icon" data-tone="warning"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg></span></div><strong class="stat-value" id="stat-review">1</strong><p class="stat-note">Awaiting verification or station review</p></article>
+          </div>
+          <div class="dashboard-grid">
+            <div class="dashboard-main">
+              <article class="activity-hero"><div class="hero-copy"><span class="hero-status"><span class="status-dot"></span>ACTIVE DISTRIBUTION</span><h2>Relief, where it’s needed.</h2><p>Habagat Response <span> / </span> Metro Manila 04</p><div class="hero-tags"><span><svg class="icon" aria-hidden="true"><use href="#i-location"/></svg>Barangays 587, 588 &amp; 589</span><span><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg>240 family food packages</span></div><button class="button hero-button" type="button" data-action="start-registration">Start registration<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div><div class="hero-art" aria-hidden="true"><svg viewBox="0 0 230 210" fill="none"><circle cx="125" cy="103" r="83" stroke="currentColor" opacity=".14"/><circle cx="125" cy="103" r="63" stroke="currentColor" opacity=".18"/><path d="m57 82 68-38 68 38v79l-68 38-68-38V82Z" fill="#dce3ff" fill-opacity=".08" stroke="#dce3ff" stroke-width="2"/><path d="m57 82 68 39 68-39M125 121v78M91 63l68 39v29l-19 11v-29L72 74" stroke="#dce3ff" stroke-width="2"/><path d="m156 164 20-11M156 171l20-11" stroke="#dce3ff" stroke-width="3" stroke-linecap="round"/><rect x="171" y="35" width="39" height="39" rx="19.5" fill="#fef200"/><path d="m182 54 6 6 11-12" stroke="#2e3192" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 123h14M41 116v14M176 187h12M182 181v12" stroke="#dce3ff" stroke-width="1.5" opacity=".65"/></svg></div><div class="hero-progress"><div><span>Activity progress</span><strong id="hero-progress-label">4 of 240 packages distributed</strong></div><div class="progress-track"><span id="hero-progress" style="width:1.67%"></span></div></div></article>
+              <article class="card distribution-chart"><div class="card-header"><div><h2>Distribution progress</h2><p>Confirmed packages by hour · sample activity</p></div><span class="badge" data-tone="neutral">Today</span></div><div class="chart-meta"><strong id="chart-total">4 <span>packages released</span></strong><span class="chart-legend"><i></i>Family food packages</span></div><div class="chart-wrap"><div class="chart-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="chart-grid"><div id="hourly-chart" role="img" aria-label="Packages released by hour"></div></div></div></article>
+              <article class="card recent-card"><div class="card-header"><div><h2>Recent beneficiaries</h2><p>The latest households in your activity.</p></div><a class="text-link" href="#beneficiaries" data-view-link="beneficiaries">View all<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div><div class="table-wrap"><table class="data-table"><caption class="sr-only">Recent beneficiary records</caption><thead><tr><th scope="col">Beneficiary</th><th scope="col">Barangay</th><th scope="col">Members</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody id="recent-beneficiaries"></tbody></table></div><div class="table-footer"><span id="recent-count">Showing 5 recent households</span><span>Sample activity records</span></div></article>
             </div>
-            <div class="queue-counter"><strong>18</strong><span>people waiting</span></div>
-          </div>
-
-          <div class="registration-grid">
-            <div class="registration-copy">
-              <div class="flow-pill"><span>Step 1</span> Beneficiary verification</div>
-              <h1 id="registration-heading">Register and verify a beneficiary</h1>
-              <p class="lede">Capture biometric data before entering beneficiary details. The system checks for existing registrations and previous claims in the current distribution activity.</p>
-              <ol class="quiet-steps" aria-label="Registration process">
-                <li><span>1</span> Capture biometric data</li>
-                <li><span>2</span> Confirm or create the household record</li>
-                <li><span>3</span> Check eligibility before goods release</li>
-              </ol>
+            <div class="dashboard-side">
+              <article class="card quick-guide"><div class="card-header"><h2>A smoother handover</h2><svg class="icon muted" aria-hidden="true"><use href="#i-scan"/></svg></div><ol class="guide-list"><li><span>1</span><div><strong>Register the household</strong><p>First-time beneficiaries save their details.</p></div></li><li><span>2</span><div><strong>Verify the saved profile</strong><p>Confirm identity and review claim history.</p></div></li><li><span>3</span><div><strong>Check &amp; release</strong><p>Review eligibility and confirm receipt.</p></div></li></ol><button class="button secondary full-width" type="button" data-action="start-registration">Open registration<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></article>
+              <article class="card stock-card"><div class="card-header"><h2>Ready to distribute</h2><span class="badge" data-tone="success">In stock</span></div><div class="stock-visual"><div class="stock-package"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg></div><div class="stock-metric"><strong id="stock-count">236</strong><span>family food packages</span></div></div><div class="progress-track"><span id="stock-progress" style="width:98.3%"></span></div><p class="stock-detail" id="stock-detail">236 remaining of 240 allocated</p><a class="text-link" href="#inventory" data-view-link="inventory">View inventory<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></article>
+              <article class="card feed-card"><div class="card-header"><h2>Recent activity</h2><span class="live-indicator"><span class="status-dot"></span>Today</span></div><ul class="activity-feed" id="activity-feed"></ul><a class="text-link" href="#claims" data-view-link="claims">View claim history<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></article>
+              <div class="care-note"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><div><strong>Every household counts.</strong><p>Check existing records before registration to help prevent duplicate assistance.</p></div></div>
             </div>
-
-            <section class="capture-card" aria-labelledby="capture-heading">
-              <div class="capture-header">
-                <div>
-                  <p class="section-kicker">New beneficiary record</p>
-                  <h2 id="capture-heading">Biometric data capture</h2>
-                </div>
-                <span class="device-state" id="device-state"><i></i> Camera ready</span>
-              </div>
-
-              <div class="capture-tabs" role="tablist" aria-label="Capture method">
-                <button class="capture-tab active" id="face-tab" type="button" role="tab" aria-selected="true" data-capture="face">Face scan</button>
-                <button class="capture-tab" id="finger-tab" type="button" role="tab" aria-selected="false" data-capture="fingerprint">Fingerprint</button>
-              </div>
-
-              <div class="scanner" id="scanner" aria-live="polite">
-                <div class="face-frame" id="face-frame" aria-hidden="true">
-                  <span class="frame-corner corner-tl"></span><span class="frame-corner corner-tr"></span><span class="frame-corner corner-bl"></span><span class="frame-corner corner-br"></span>
-                  <div class="portrait-silhouette"><span class="head"></span><span class="shoulders"></span></div>
-                  <span class="scan-line"></span>
-                </div>
-                <div class="fingerprint-mark" id="fingerprint-mark" aria-hidden="true">⌁</div>
-                <p class="scanner-label" id="scanner-label">Position face inside the guide</p>
-              </div>
-
-              <div class="capture-actions">
-                <button type="button" class="btn btn-primary capture-button" id="capture-button">Capture face scan</button>
-                <button type="button" class="btn btn-link text-button" id="manual-button">Enter existing ID</button>
-              </div>
-              <p class="privacy-note"><strong>Data privacy notice:</strong> Biometric data is used only to confirm identity and prevent duplicate relief claims, in accordance with DSWD procedures.</p>
-            </section>
           </div>
         </section>
 
-        <section class="workflow-section hidden" id="match-result" aria-labelledby="match-heading">
-          <div class="result-band">
-            <div class="result-icon">✓</div>
-            <div>
-              <p class="section-kicker">Identity check complete</p>
-              <h2 id="match-heading">No match found in this batch</h2>
-              <p>Capture quality passed. Create the beneficiary record to continue.</p>
+        <section class="view" id="registration" data-view="registration" aria-labelledby="registration-heading">
+          <div class="page-heading"><div><p class="eyebrow">BENEFICIARY INTAKE</p><h1 id="registration-heading">Register &amp; verify</h1><p>Register the household, verify its identity, and confirm the handover.</p></div><button class="button secondary" id="save-draft-button" type="button" data-action="save-draft" hidden><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Save draft</button></div>
+          <article class="card registration-entry" id="registration-entry" aria-labelledby="registration-entry-heading">
+            <div class="card-body">
+              <div class="entry-heading"><span class="badge" data-tone="neutral">Habagat Response · Metro Manila 04</span><h2 id="registration-entry-heading">Is this your first registration?</h2><p>Choose the path that matches the beneficiary. New households register their details first. Returning beneficiaries verify their existing record and review their claim history.</p></div>
+              <div class="entry-options registration-entry-grid">
+                <section class="entry-choice entry-option"><span class="entry-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span><h3>First time registering</h3><p>Confirm that this is a new registration, then complete the beneficiary and household form.</p><button class="button primary full-width" type="button" data-action="new-registration">New registration<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></section>
+                <section class="entry-choice entry-option"><span class="entry-icon"><svg class="icon" aria-hidden="true"><use href="#i-scan"/></svg></span><h3>Already registered</h3><p>Find the registered profile, verify the beneficiary, and check previous assistance in this batch.</p><button class="button secondary full-width" type="button" data-action="returning-beneficiary">Verify returning beneficiary<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></section>
+              </div>
+              <p class="entry-note"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Demo workspace: use fictional details. No camera, fingerprint device, or identity matching service is connected.</p>
             </div>
-            <button class="btn btn-dark" id="create-record-button" type="button">Create beneficiary record</button>
-          </div>
-        </section>
-
-        <section class="workflow-section hidden" id="beneficiary" aria-labelledby="beneficiary-heading">
-          <div class="section-heading-row">
-            <div>
-              <p class="section-kicker">Step 2 of 3</p>
-              <h2 id="beneficiary-heading">Beneficiary and household details</h2>
-              <p>Use a household record to link relatives and avoid duplicate assistance.</p>
+          </article>
+          <div id="intake-workflow" hidden>
+            <div class="workflow-topline"><span><span class="status-dot"></span>Habagat Response · Metro Manila 04</span><span id="workflow-progress">Step 1 of 4</span></div>
+            <nav class="stepper" aria-label="Registration progress"><button class="step-button current" type="button" data-step="details" aria-current="step"><span class="step-number">1</span><span><strong class="step-label">Register household</strong><span class="step-description">Save beneficiary details</span></span></button><button class="step-button" type="button" data-step="verify" disabled><span class="step-number">2</span><span><strong class="step-label">Verify identity</strong><span class="step-description">Confirm the profile</span></span></button><button class="step-button" type="button" data-step="eligibility" disabled><span class="step-number">3</span><span><strong class="step-label">Check eligibility</strong><span class="step-description">Review batch rules</span></span></button><button class="step-button" type="button" data-step="release" disabled><span class="step-number">4</span><span><strong class="step-label">Release goods</strong><span class="step-description">Confirm handover</span></span></button></nav>
+            <div class="intake-layout registration-layout" id="registration-layout">
+              <div class="intake-main">
+                <article class="card workflow-card" data-step-panel="details"><div class="card-header"><div><h2>Beneficiary registration</h2><p>Complete and save the household profile before identity verification.</p></div><button class="text-link" type="button" data-action="use-demo">Fill sample details</button></div>
+                  <form class="card-body" id="beneficiary-form">
+                    <div class="section-title"><h3>Personal details</h3><span>All fields required unless marked optional</span></div>
+                    <div class="field-grid">
+                      <div class="field"><label for="first-name">First / middle names</label><input class="form-control" id="first-name" autocomplete="given-name" required maxlength="100" /></div>
+                      <div class="field"><label for="last-name">Last name</label><input class="form-control" id="last-name" autocomplete="family-name" required maxlength="60" /></div>
+                      <div class="field"><label for="birth-date">Date of birth</label><input class="form-control" id="birth-date" type="date" autocomplete="bday" required /><output class="age-preview field-note" id="age-preview" for="birth-date" aria-live="polite">Age: —</output></div>
+                      <div class="field"><label for="sex">Sex / gender</label><select class="form-select" id="sex" required><option value="">Select</option><option>Female</option><option>Male</option><option>Another identity</option><option>Prefer not to say</option></select></div>
+                      <div class="field"><label for="civil-status">Civil status</label><select class="form-select" id="civil-status" required><option value="">Select civil status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option><option>Live-in partnership</option><option>Prefer not to say</option></select></div>
+                      <div class="field"><label for="contact">Contact details</label><input class="form-control" id="contact" type="text" placeholder="Phone, email, or Not available" required maxlength="100" aria-describedby="contact-note" /><span class="field-note" id="contact-note">Phone, email, or “Not available” if none.</span></div>
+                      <div class="field full"><label for="valid-id">Valid ID / supporting document <span class="optional">(optional)</span></label><input class="form-control" id="valid-id" placeholder="Use a fictional document type or reference for this demo" maxlength="100" /></div>
+                    </div>
+                    <div class="section-title section-spaced"><h3>Household location</h3><span>Current demo coverage: Manila barangays 587, 588 &amp; 589</span></div>
+                    <div class="field-grid">
+                      <div class="field"><label for="region">Region</label><input class="form-control" id="region" value="NCR" placeholder="e.g. NCR" required maxlength="80" /></div>
+                      <div class="field"><label for="province">Province / metropolitan area</label><input class="form-control" id="province" value="Metro Manila" placeholder="e.g. Metro Manila" required maxlength="80" /></div>
+                      <div class="field"><label for="city">City / municipality</label><input class="form-control" id="city" autocomplete="address-level2" placeholder="e.g. Manila" required maxlength="80" /></div>
+                      <div class="field"><label for="barangay">Barangay</label><input class="form-control" id="barangay" placeholder="e.g. Barangay 587" required maxlength="80" /></div>
+                      <div class="field full"><label for="address">Street / sitio / house number</label><input class="form-control" id="address" autocomplete="street-address" placeholder="e.g. 24 P. Sanchez Street" required maxlength="140" /></div>
+                    </div>
+                    <div class="section-title section-spaced"><h3>Household information</h3><span>Income is recorded for this prototype; no income threshold is applied.</span></div>
+                    <div class="field-grid">
+                      <div class="field"><label for="household-size">Number of household members</label><input class="form-control" id="household-size" type="number" min="1" max="20" value="1" required /><span class="field-note">Include the primary beneficiary.</span></div>
+                      <div class="field"><label for="income">Household income amount</label><div class="income-input-group"><span aria-hidden="true">₱</span><input class="form-control" id="income" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 8000" required aria-describedby="income-note" /></div><span class="field-note" id="income-note">Enter 0 if the household has no income.</span></div>
+                      <div class="field"><label for="income-period">Income period</label><select class="form-select" id="income-period" required><option value="monthly">Monthly</option><option value="annual">Annual</option></select></div>
+                    </div>
+                    <div class="section-title section-spaced"><h3>Linked household members <span class="badge" data-tone="neutral" id="household-count">1</span></h3><button class="text-link" type="button" data-action="add-member"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add member</button></div>
+                    <ul class="household-list" id="household-list"></ul><p class="inline-error" id="form-error" role="alert" hidden></p>
+                    <div class="form-actions"><button class="button secondary" type="button" data-action="cancel-intake">Cancel registration</button><button class="button primary" id="save-registration" type="submit">Save registration &amp; continue<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
+                  </form>
+                </article>
+                <article class="card workflow-card" data-step-panel="verify" hidden><div class="card-header"><div><h2>Verify the registered beneficiary</h2><p id="registration-status" role="status" aria-live="polite">Confirm the saved profile and review claim history before release.</p></div><span class="badge" data-tone="neutral">Step 02</span></div><div class="card-body">
+                  <div class="notice" data-tone="neutral"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><p><strong>Demo verification only.</strong> This workspace uses fictional records. Face and fingerprint actions simulate a verification result; no biometric data is collected or matched.</p></div>
+                  <label class="check-field consent-field"><input type="checkbox" id="capture-consent"/><span><strong>Privacy notice acknowledged</strong><small>I have explained the purpose of identity verification and recorded the beneficiary’s acknowledgment for this demo.</small></span></label>
+                  <form class="lookup-form" id="identity-search-form"><label class="form-label" for="identity-query">Registered beneficiary name or record ID</label><div class="lookup-controls"><div class="search-field"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input id="identity-query" type="search" placeholder="e.g. Marites Santos or RL-0001" autocomplete="off" required /></div><button class="button secondary" type="submit">Find registered record</button></div></form><div class="search-results" id="identity-results" aria-live="polite"></div>
+                  <div class="verification-preview-grid"><section class="verification-preview matched-profile" id="matched-profile" aria-label="Selected beneficiary profile" hidden></section><section class="verification-preview claim-history-preview" id="claim-history-preview" aria-label="Claims for the selected beneficiary" hidden></section></div>
+                  <div class="search-divider"><span>Confirm identity for the registered profile</span></div><div class="method-switch" aria-label="Identity verification method"><button type="button" class="active" data-capture="face" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-face"/></svg>Face scan demo</button><button type="button" data-capture="fingerprint" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-fingerprint"/></svg>Fingerprint demo</button><button type="button" data-capture="manual" aria-pressed="false">Manual verification</button></div>
+                  <div id="capture-panel"><div class="capture-layout"><div class="scanner" id="scanner"><div class="face-frame" aria-hidden="true"><span class="frame-corner corner-tl"></span><span class="frame-corner corner-tr"></span><span class="frame-corner corner-bl"></span><span class="frame-corner corner-br"></span><div class="portrait-silhouette"><span class="head"></span><span class="shoulders"></span></div><span class="scan-line"></span></div><svg class="fingerprint-mark icon" aria-hidden="true"><use href="#i-fingerprint"/></svg><p class="scanner-label" id="scanner-label">Simulated face verification preview</p><span class="scanner-demo">SIMULATED PREVIEW</span></div><div class="capture-instructions"><span class="badge" data-tone="neutral" id="device-state">Demo face capture</span><h3>Confirm the saved beneficiary.</h3><p>Review the displayed profile before simulating an identity check.</p><p class="field-note">No camera, scanner, or biometric matching service is connected.</p><button class="button primary" type="button" id="capture-button"><svg class="icon" aria-hidden="true"><use href="#i-scan"/></svg>Simulate face verification</button></div></div></div>
+                  <form id="manual-form" hidden><div class="notice" data-tone="warning"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><p>Document an alternative when biometric capture is unavailable. Manual verification is simulated in this demo.</p></div><div class="field-grid"><div class="field"><label for="manual-reference">Supporting document reference</label><input class="form-control" id="manual-reference" placeholder="e.g. Demo barangay certificate 014" required maxlength="100" /></div><div class="field"><label for="manual-reason">Reason for manual verification</label><select class="form-select" id="manual-reason" required><option value="">Select a reason</option><option>Device unavailable</option><option>Capture unsuccessful</option><option>Accessibility accommodation</option></select></div></div><div class="form-actions"><button class="button primary" type="submit">Record manual verification<svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></button></div></form><div id="manual-panel" hidden></div><p class="inline-error" id="verification-error" role="alert" hidden></p>
+                  <div class="result-card" id="match-result" hidden><span class="result-icon"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><div><strong>Demo verification complete</strong><p id="capture-result-status">Review the saved profile and recorded claims. Continue to the example eligibility checks.</p></div></div>
+                  <div class="form-actions"><button class="button secondary" type="button" data-step="details">Edit registration</button><button class="button primary" type="button" id="continue-details" disabled>Continue to eligibility<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
+                </div></article>
+                <article class="card workflow-card" data-step-panel="eligibility" hidden><div class="card-header"><div><h2>Eligibility assessment</h2><p>Review each check before preparing the package.</p></div><span class="badge" data-tone="neutral">Step 03</span></div><div class="card-body"><div class="notice eligibility-banner" id="eligibility-banner" data-tone="success"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><div><h3 id="eligibility-title">Assessment pending</h3><p id="eligibility-description">Save the registration and verify the profile to run batch checks.</p></div></div><div class="rule-list" id="rule-list"></div><p class="field-note">These are example batch rules for this prototype. Official eligibility decisions require a connected, authorized review process.</p><div class="form-actions"><button class="button secondary" type="button" data-step="verify">Back to verification</button><button class="button primary" id="release-button" type="button" disabled>Prepare relief package<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></div></article>
+                <article class="card workflow-card" data-step-panel="release" hidden><div class="card-header"><div><h2>Confirm goods release</h2><p>Record the handover and the personnel responsible for the release.</p></div><span class="badge" data-tone="neutral">Step 04</span></div>
+                  <div class="card-body" id="release-content"><div class="release-grid"><div><p class="eyebrow">RECIPIENT</p><h3 id="release-name">Beneficiary</h3><p class="muted" id="release-household">Household details</p><dl class="summary-list"><div><dt>Record ID</dt><dd id="release-record-id">—</dd></div><div><dt>Verified using</dt><dd id="release-method">—</dd></div><div><dt>Current batch</dt><dd id="release-batch">MM04 · Batch 01</dd></div></dl></div><div class="release-package"><span class="stock-package"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg></span><h3>Family food package</h3><p class="muted">1 package per household / batch</p></div></div><ul class="package-list"><li class="package-item"><span>Rice</span><strong>6 kg</strong></li><li class="package-item"><span>Canned sardines</span><strong>4 cans</strong></li><li class="package-item"><span>Canned corned beef</span><strong>4 cans</strong></li><li class="package-item"><span>Coffee &amp; cereal drinks</span><strong>6 sachets each</strong></li></ul><p class="field-note">Illustrative package contents for this demo.</p>
+                    <div class="section-title section-spaced"><h3>Releasing personnel</h3><span>Both fields are required to record the handover.</span></div><div class="field-grid release-personnel"><div class="field"><label for="personnel-name">Personnel name</label><input class="form-control" id="personnel-name" value="Maria Garcia" required maxlength="100" autocomplete="off" /></div><div class="field"><label for="personnel-id">Personnel ID</label><input class="form-control" id="personnel-id" value="DSWD-DEMO-04" required maxlength="60" autocomplete="off" /></div></div>
+                    <label class="check-field"><input id="receipt-ack" type="checkbox"/><span><strong>Package received and acknowledged</strong><small>I confirm that the beneficiary received one complete family food package.</small></span></label><p class="inline-error" id="release-error" role="alert" hidden></p><div class="form-actions"><button class="button secondary" type="button" data-step="eligibility">Back to checks</button><button class="button primary" id="confirm-release" type="button" disabled>Confirm release<svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></button></div></div>
+                  <div class="card-body release-complete" id="release-success" hidden><span class="success-emblem"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><p class="eyebrow">HANDOVER COMPLETE</p><h2>One more household supported.</h2><p>The release is recorded and available in claim history.</p><div class="receipt-grid"><div class="receipt-item"><span>Receipt number</span><strong id="receipt-number">—</strong></div><div class="receipt-item"><span>Beneficiary</span><strong id="receipt-beneficiary">—</strong></div><div class="receipt-item"><span>Released at</span><strong id="receipt-time">—</strong></div><div class="receipt-item"><span>Package</span><strong>1 family food package</strong></div><div class="receipt-item"><span>Releasing personnel</span><strong id="receipt-personnel">—</strong></div><div class="receipt-item"><span>Batch</span><strong id="receipt-batch">MM04 · Batch 01</strong></div></div><div class="form-actions"><button class="button secondary" type="button" data-action="print-receipt"><svg class="icon" aria-hidden="true"><use href="#i-print"/></svg>Print receipt</button><button class="button primary" type="button" data-action="start-registration">Register next beneficiary<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></div>
+                </article>
+              </div>
+              <aside class="card summary-card"><div class="card-header"><h2>Current intake</h2><span class="badge" data-tone="neutral" id="summary-status">Not started</span></div><div class="card-body"><div class="summary-person"><span class="person-avatar"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg></span><div><strong id="summary-name">New beneficiary</strong><span id="summary-id">No record selected</span></div></div><dl class="summary-list"><div><dt>Household</dt><dd id="summary-household">Not yet entered</dd></div><div><dt>Verification</dt><dd id="summary-method">Pending</dd></div><div><dt>Batch</dt><dd>MM04 · Batch 01</dd></div><div><dt>Entitlement</dt><dd>1 family food package</dd></div></dl><div class="notice" data-tone="neutral"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg><p>Each household can receive one package in this demo batch. Prior claims are checked before release.</p></div><p class="draft-status" id="draft-status">Your intake stays available while switching sections.</p><button class="text-link cancel-link" type="button" data-action="cancel-intake">Clear current intake</button></div></aside>
             </div>
-            <span class="record-chip">Draft record</span>
-          </div>
-
-          <div class="details-layout">
-            <form class="details-form" id="beneficiary-form">
-              <div class="form-section-title">Personal details</div>
-              <div class="row g-3">
-                <div class="col-md-6"><label class="form-label" for="first-name">First name</label><input class="form-control" id="first-name" value="Marites" required /></div>
-                <div class="col-md-6"><label class="form-label" for="last-name">Last name</label><input class="form-control" id="last-name" value="Santos" required /></div>
-                <div class="col-md-4"><label class="form-label" for="birth-date">Birth date</label><input class="form-control" id="birth-date" type="date" value="1982-04-17" /></div>
-                <div class="col-md-4"><label class="form-label" for="sex">Sex</label><select class="form-select" id="sex"><option>Female</option><option>Male</option><option>Prefer not to say</option></select></div>
-                <div class="col-md-4"><label class="form-label" for="income">Monthly household income</label><select class="form-select" id="income"><option>Below ₱10,000</option><option>₱10,000–₱20,000</option><option>Above ₱20,000</option></select></div>
-              </div>
-              <div class="form-section-title mt-4">Current location</div>
-              <div class="row g-3">
-                <div class="col-md-7"><label class="form-label" for="address">Street / sitio</label><input class="form-control" id="address" value="P. Sanchez Street" /></div>
-                <div class="col-md-5"><label class="form-label" for="barangay">Barangay</label><input class="form-control" id="barangay" value="Barangay 587" /></div>
-                <div class="col-md-6"><label class="form-label" for="city">City / municipality</label><input class="form-control" id="city" value="Manila" /></div>
-                <div class="col-md-6"><label class="form-label" for="contact">Mobile number</label><input class="form-control" id="contact" placeholder="Optional" /></div>
-              </div>
-              <div class="form-actions"><button class="btn btn-primary" type="submit">Save and assess eligibility</button><button class="btn btn-link text-button" type="button">Save as draft</button></div>
-            </form>
-
-            <aside class="household-panel" aria-labelledby="household-heading">
-              <div class="household-heading"><div><p class="section-kicker">Linked people</p><h3 id="household-heading">Santos household</h3></div><button class="add-person" type="button" id="add-person-button" aria-label="Add linked beneficiary">+</button></div>
-              <p class="household-address">P. Sanchez Street, Barangay 587</p>
-              <ul class="household-list" id="household-list">
-                <li><span class="person-avatar orange">MS</span><div><strong>Marites Santos</strong><small>Primary beneficiary · 44</small></div><span class="relationship-tag">Self</span></li>
-                <li><span class="person-avatar blue">JS</span><div><strong>Jose Santos</strong><small>Household member · 47</small></div><span class="relationship-tag">Spouse</span></li>
-                <li><span class="person-avatar green">AS</span><div><strong>Angela Santos</strong><small>Household member · 13</small></div><span class="relationship-tag">Daughter</span></li>
-              </ul>
-              <div class="household-note"><span>i</span><p>One household shares one relief package per active batch, subject to program rules.</p></div>
-            </aside>
           </div>
         </section>
 
-        <section class="workflow-section hidden" id="eligibility" aria-labelledby="eligibility-heading">
-          <div class="eligibility-card">
-            <div class="eligibility-intro"><p class="section-kicker">Step 3 of 3</p><h2 id="eligibility-heading">Eligibility assessment</h2><p>Review the result before preparing any relief package.</p></div>
-            <div class="eligibility-status"><span class="status-check">✓</span><div><strong>Eligible for release</strong><span>No recorded claim in Habagat Response · Metro Manila 04</span></div></div>
-            <div class="rule-list"><div><span>✓</span> Identity verified</div><div><span>✓</span> Household profile complete</div><div><span>✓</span> No claim in active batch</div></div>
-            <button class="btn btn-primary" type="button" id="release-button">Prepare relief package</button>
-          </div>
-        </section>
-
-        <section class="workflow-section hidden" id="distribution" aria-labelledby="distribution-heading">
-          <div class="release-card"><div class="release-badge">✓</div><div><p class="section-kicker">Ready for handover</p><h2 id="distribution-heading">Relief package prepared</h2><p>Marites Santos may now receive one standard family food package. Confirm the handover at the release desk.</p></div><button type="button" class="btn btn-dark" id="confirm-release">Confirm release</button></div>
-        </section>
-
-        <section class="workflow-section claim-history hidden" id="claim-history" aria-labelledby="claims-heading">
-          <div class="section-heading-row"><div><p class="section-kicker">Beneficiary record</p><h2 id="claims-heading">Claim history</h2></div></div>
-          <div class="empty-history"><span>◷</span><p>No claims recorded for this beneficiary.</p></div>
-        </section>
+        <section class="view" id="beneficiaries" data-view="beneficiaries" aria-labelledby="beneficiaries-heading" hidden><div class="page-heading"><div><p class="eyebrow">HOUSEHOLD DIRECTORY</p><h1 id="beneficiaries-heading">Beneficiaries</h1><p>Find a household, review its details, and continue registration.</p></div><button class="button primary" type="button" data-action="start-registration"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Register beneficiary</button></div><article class="card"><div class="table-toolbar"><div class="search-field"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="beneficiary-search" aria-label="Search beneficiaries" placeholder="Search name, record ID or barangay…" /></div><label class="filter-select"><span class="sr-only">Filter by status</span><select id="beneficiary-status" class="form-select"><option value="all">All statuses</option><option value="registered">Awaiting verification</option><option value="ready">Ready for assessment</option><option value="released">Released</option><option value="review">Needs review</option></select></label></div><div class="table-wrap"><table class="data-table"><caption class="sr-only">Beneficiaries in Habagat Response, Metro Manila 04</caption><thead><tr><th scope="col">Beneficiary</th><th scope="col">Location</th><th scope="col">Household</th><th scope="col">Status</th><th scope="col">Last activity</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody id="beneficiaries-table"></tbody></table></div><div class="table-footer"><span id="beneficiary-count">8 households</span><span>Habagat Response · Metro Manila 04</span></div></article></section>
+        <section class="view" id="claims" data-view="claims" aria-labelledby="claims-heading" hidden><div class="page-heading"><div><p class="eyebrow">CONFIRMED HANDOVERS</p><h1 id="claims-heading">Claim history</h1><p>A clear record of the assistance each household received.</p></div><button class="button secondary" type="button" data-action="export-claims"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export history</button></div><article class="card"><div class="table-toolbar"><div class="search-field"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input id="claims-search" type="search" aria-label="Search claim history" placeholder="Search receipt number or beneficiary…" /></div><span class="badge" data-tone="neutral">All distribution batches</span></div><div class="table-wrap"><table class="data-table"><caption class="sr-only">Confirmed package releases</caption><thead><tr><th scope="col">Receipt</th><th scope="col">Beneficiary</th><th scope="col">Relief package</th><th scope="col">Released at</th><th scope="col">Personnel</th><th scope="col">Batch</th><th scope="col">Status</th></tr></thead><tbody id="claims-table"></tbody></table></div><div class="table-footer"><span id="claims-count">4 recorded releases</span><span>Demo transactions</span></div></article></section>
+        <section class="view" id="inventory" data-view="inventory" aria-labelledby="inventory-heading" hidden><div class="page-heading"><div><p class="eyebrow">DISTRIBUTION STOCK</p><h1 id="inventory-heading">Relief inventory</h1><p>Track the packages allocated to this activity and ready for release.</p></div><span class="badge" data-tone="success"><span class="status-dot"></span>Metro Manila 04</span></div><div class="inventory-grid"><article class="card inventory-summary"><div class="card-header"><h2>Family food packages</h2><span class="stock-package"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg></span></div><div class="card-body"><div class="inventory-stats"><div><span>Available</span><strong id="inventory-available">236</strong></div><div><span>Distributed</span><strong id="inventory-released">4</strong></div><div><span>Allocated</span><strong id="inventory-total">240</strong></div></div><div class="progress-track"><span id="inventory-progress" style="width:98.3%"></span></div><p class="muted" id="inventory-remaining">236 packages available for this activity</p><div class="notice" data-tone="neutral"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg><p>A confirmed handover deducts one package. Allocation and contents are sample values for this workspace.</p></div></div></article><article class="card"><div class="card-header"><div><h2>Inside each package</h2><p>Illustrative contents · 1 package per household</p></div></div><div class="card-body"><ul class="package-list"><li class="package-item"><span>Rice</span><strong>6 kg</strong></li><li class="package-item"><span>Canned sardines</span><strong>4 cans</strong></li><li class="package-item"><span>Canned corned beef</span><strong>4 cans</strong></li><li class="package-item"><span>Coffee</span><strong>6 sachets</strong></li><li class="package-item"><span>Cereal drinks</span><strong>6 sachets</strong></li></ul><a class="button secondary full-width" href="#claims" data-view-link="claims">Review distribution history<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div></article></div></section>
+        <footer class="workspace-footer agency-footer"><div class="footer-agency"><img class="footer-dswd-logo" src="assets/branding/dswd-logo.png" alt="DSWD" width="939" height="265" /><span>Maagap at Mapagkalingang Serbisyo</span></div><span>Front-end prototype · All records are sample data</span></footer>
       </main>
     </div>
-
-    <div class="toast-container position-fixed bottom-0 end-0 p-3"><div class="toast" id="app-toast" role="status" aria-live="polite" aria-atomic="true"><div class="toast-body"><span class="toast-tick">✓</span><span id="toast-message">Saved</span><button type="button" class="btn-close ms-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div></div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s0JfEsi4hc8zHlvbPg55n2oV0yQ9B0dH0zJfG4C0d" crossorigin="anonymous"></script>
-    <script src="assets/js/app.js"></script>
+    <dialog class="modal-dialog" id="member-dialog" aria-labelledby="member-dialog-heading"><div class="dialog-header"><h2 id="member-dialog-heading">Add household member</h2><button class="icon-button" type="button" data-action="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><form id="member-form"><div class="dialog-body field-grid"><div class="field full"><label for="member-name">Full name</label><input id="member-name" class="form-control" required maxlength="100" /></div><div class="field"><label for="member-relationship">Relationship</label><select id="member-relationship" class="form-select" required><option value="">Select</option><option>Spouse</option><option>Child</option><option>Parent</option><option>Sibling</option><option>Other</option></select></div><div class="field"><label for="member-age">Age <span class="optional">(optional)</span></label><input id="member-age" class="form-control" type="number" min="0" max="120" /></div></div><div class="dialog-actions"><button class="button secondary" type="button" data-action="close-dialog">Cancel</button><button class="button primary" type="submit">Add member</button></div></form></dialog>
+    <dialog class="modal-dialog" id="record-dialog" aria-labelledby="record-dialog-title"><div class="dialog-header"><h2 id="record-dialog-title">Beneficiary record</h2><button class="icon-button" type="button" data-action="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><div class="dialog-body" id="record-dialog-content"></div><div class="dialog-actions"><button class="button secondary" type="button" data-action="close-dialog">Close</button><button class="button primary" type="button" id="record-continue">Verify &amp; continue<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></dialog>
+    <dialog class="modal-dialog" id="help-dialog" aria-labelledby="help-heading"><div class="dialog-header"><h2 id="help-heading">A clearer path to relief</h2><button class="icon-button" type="button" data-action="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><div class="dialog-body"><ol class="guide-list"><li><span>1</span><div><strong>Choose a new or returning registration</strong><p>New beneficiaries complete and save their personal, location, and household details first. Returning beneficiaries open verification for their existing record.</p></div></li><li><span>2</span><div><strong>Verify the saved beneficiary</strong><p>Acknowledge the privacy notice, then select a registered sample profile or simulate face, fingerprint, or manual verification. Review the profile and previous claims. Try “Marites Santos” for a served household or “Ana Reyes” for an unserved household.</p></div></li><li><span>3</span><div><strong>Review and hand over</strong><p>Check the assessment, enter the releasing personnel name and ID, acknowledge receipt, and confirm release. The receipt and history include the batch and responsible personnel.</p></div></li></ol><div class="notice" data-tone="neutral"><p>Drafts and transactions stay in memory while this page is open. Refreshing resets the sample workspace. Identity verification and eligibility rules are illustrative.</p></div></div><div class="dialog-actions"><button class="button primary" type="button" data-action="close-dialog">Got it</button></div></dialog>
+    <div class="app-toast" id="app-toast" role="status" aria-live="polite" aria-atomic="true" hidden><span class="toast-tick"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><span id="toast-message">Saved</span><button class="icon-button" id="toast-close" type="button" aria-label="Dismiss notification"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <section id="receipt-print" aria-label="Release receipt"></section>
   </body>
 </html>
