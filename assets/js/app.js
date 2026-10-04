@@ -361,9 +361,6 @@
     const history = claims.filter((claim) => claim.recordId === record.id || claim.householdKey === householdKey(record)).sort((a, b) => new Date(b.releasedAt) - new Date(a.releasedAt));
     if ($('claim-history-preview')) $('claim-history-preview').innerHTML = `<h3>Registered household claim history</h3><p class="field-hint">Active batch: ${escapeHTML(BATCH_LABEL)}. Earlier batches do not block this batch.</p>${history.length ? `<ul class="claim-history-list">${history.map((claim) => `<li><strong>${escapeHTML(claim.receipt)}</strong><span class="badge" data-tone="${claim.batchId === BATCH_ID ? 'warning' : 'neutral'}">${claim.batchId === BATCH_ID ? 'Current batch · already claimed' : 'Previous batch'}</span><small>${escapeHTML(claim.batchLabel)} · ${escapeHTML(formatDateTime(claim.releasedAt))}</small><small>${claim.quantity} × ${escapeHTML(claim.package)} · ${escapeHTML(claim.personnelName)}</small></li>`).join('')}</ul>` : '<p class="empty-state compact">No previous releases recorded for this registered household.</p>'}`;
   }
-  function withinCoverage(record) {
-    return ['national capital region', 'ncr'].includes(normalize(record.region)) && normalize(record.province) === 'metro manila' && normalize(record.city) === 'manila' && ['Barangay 587', 'Barangay 588', 'Barangay 589'].includes(canonicalBarangay(record.barangay));
-  }
   function hasHouseholdClaim(record, id = record.id) {
     return claims.some((claim) => claim.batchId === BATCH_ID && (claim.recordId === id || claim.householdKey === householdKey(record)));
   }
@@ -380,7 +377,6 @@
   function assess(fields, id, members) {
     const claimed = hasHouseholdClaim(fields, id);
     const complete = profileComplete(fields, members);
-    const coverage = withinCoverage(fields);
     const available = availablePackages();
     const registered = records.find((record) => record.id === id && record.registered);
     const verified = Boolean(registered && intake.verified && intake.verifiedRecordId === id);
@@ -388,7 +384,6 @@
       { title: 'Registration on file', passed: Boolean(registered && profileComplete(registered, registered.members) && intake.detailsSaved), description: registered && intake.detailsSaved ? `Registered beneficiary ${id}; profile saved before verification.` : 'Save a complete registered profile before claiming relief goods.' },
       { title: 'Identity verification', passed: verified, description: verified ? `${intake.method}${intake.manualReason ? ` · Reason: ${intake.manualReason}` : ''}` : 'Select a registered profile, acknowledge the notice, and complete counter verification.' },
       { title: 'Household profile', passed: complete, description: complete ? `${fields.householdSize} ${fields.householdSize === 1 ? 'person' : 'people'} declared; required details are complete.` : 'Complete required details and check the household size.' },
-      { title: 'Activity coverage', passed: coverage, description: coverage ? `${fields.barangay}, Manila is within this demo activity.` : 'This demo activity covers Manila barangays 587, 588 and 589. Refer other locations to the station lead.' },
       { title: 'Current batch claim history', passed: !claimed, description: claimed ? `This beneficiary or household already received a package in ${BATCH_LABEL}. Another release is blocked.` : `No release recorded for this beneficiary or household in ${BATCH_LABEL}. Earlier batches do not affect this check.` },
       { title: 'Package availability', passed: available > 0, description: available > 0 ? `${available} family food packages available. One package is assigned per household.` : 'No packages remain. A release cannot be recorded.' },
     ];
@@ -427,7 +422,7 @@
     $('receipt-print').innerHTML = `<div class="receipt-print-inner"><div class="receipt-branding"><img class="receipt-dswd-logo" src="assets/branding/dswd-logo.png" alt="Department of Social Welfare and Development" width="939" height="265" /><img class="receipt-bagong-logo" src="assets/branding/bagong-pilipinas-logo.png" alt="Bagong Pilipinas" width="692" height="648" /></div><p>DSWD relief distribution · demonstration receipt</p><h1>Relief package acknowledgment</h1><p>This is a fictional prototype transaction.</p><dl><dt>Receipt</dt><dd>${escapeHTML(receipt.receipt)}</dd><dt>Beneficiary</dt><dd>${escapeHTML(receipt.beneficiary)}</dd><dt>Sample record ID</dt><dd>${escapeHTML(receipt.recordId)}</dd><dt>Activity / batch</dt><dd>${escapeHTML(receipt.activity)} · ${escapeHTML(receipt.batchLabel)}</dd><dt>Package</dt><dd>${escapeHTML(receipt.quantity)} × ${escapeHTML(receipt.package)}</dd><dt>Released</dt><dd>${escapeHTML(formatDateTime(receipt.releasedAt))}</dd><dt>Personnel in charge</dt><dd>${escapeHTML(receipt.personnelName)} · ${escapeHTML(receipt.personnelId)}</dd></dl><p>Receipt acknowledgment confirmed by the operator in this demo.</p></div>`;
   }
   function synchronizeStatuses() {
-    records.forEach((record) => { record.status = hasHouseholdClaim(record) ? 'released' : !record.verified ? 'registered' : profileComplete(record, record.members) && withinCoverage(record) && availablePackages() > 0 ? 'ready' : 'review'; });
+    records.forEach((record) => { record.status = hasHouseholdClaim(record) ? 'released' : !record.verified ? 'registered' : profileComplete(record, record.members) && availablePackages() > 0 ? 'ready' : 'review'; });
   }
   function tableName(record) { return `<strong>${escapeHTML(nameOf(record))}</strong><small>${escapeHTML(record.id)} · sample record</small>`; }
   function openButton(record) { return `<button class="table-action" type="button" data-open-record="${escapeHTML(record.id)}" aria-label="View ${escapeHTML(nameOf(record))}">View <span aria-hidden="true">↗</span></button>`; }
