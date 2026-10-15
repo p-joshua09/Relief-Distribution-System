@@ -1,16 +1,17 @@
-(() => {
+(async () => {
   'use strict';
 
-  // Fictional demo records stay in memory. This app never collects biometrics.
+  // PostgreSQL is authoritative. Face and fingerprint capture remain explicitly simulated.
   const TIME_ZONE = 'Asia/Manila';
-  const ALLOCATED = 240;
+  let currentUser = null, csrfToken = null, databaseOnline = true, batchVersion = 1;
+  let pendingHandovers = [], savedDraft = null, mutationBusy = false, batchDirty = false;
   const PACKAGE = 'Family food package';
-  const ACTIVITY = 'Habagat Response · Metro Manila 04';
-  const BATCH_ID = 'HABAGAT-MM04-01';
-  const BATCH_LABEL = 'MM04 · Batch 01';
-  const STEPS = ['details', 'verify', 'eligibility', 'release'];
-  const VIEWS = { overview: 'Overview', registration: 'Beneficiary intake', beneficiaries: 'Beneficiaries', claims: 'Claim history', inventory: 'Inventory' };
-  const LEGACY = { beneficiary: 'beneficiaries', 'claim-history': 'claims', eligibility: 'registration', distribution: 'registration' };
+  let ACTIVITY = '', BATCH_ID = '', BATCH_LABEL = '';
+  const ENTITLEMENT = { rice: 6, canned: 4, beef: 4, coffee: 6, cereal: 6 };
+  const GOODS = { rice: 'kg rice', canned: 'sardine cans', beef: 'corned beef cans', coffee: 'coffee sachets', cereal: 'cereal sachets' };
+  const STEPS = ['verify', 'eligibility', 'release'];
+  const VIEWS = { overview: 'Overview', registration: 'Registration', verification: 'Verification', beneficiaries: 'Beneficiaries', claims: 'Claim history', pending: 'Pending handovers', audit: 'Audit trail' };
+  const LEGACY = { beneficiary: 'beneficiaries', 'claim-history': 'claims', eligibility: 'verification', distribution: 'verification' };
   const $ = (id) => document.getElementById(id);
   const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -22,8 +23,8 @@
   const TODAY = `${part('year')}-${part('month')}-${part('day')}`;
   const dateFormat = new Intl.DateTimeFormat('en-PH', { timeZone: TIME_ZONE, month: 'short', day: 'numeric', year: 'numeric' });
   const timeFormat = new Intl.DateTimeFormat('en-PH', { timeZone: TIME_ZONE, hour: 'numeric', minute: '2-digit' });
-  const formatDate = (value) => dateFormat.format(new Date(value));
-  const formatTime = (value) => timeFormat.format(new Date(value));
+  const formatDate = (value) => value && !Number.isNaN(new Date(value).getTime()) ? dateFormat.format(new Date(value)) : 'Date unavailable';
+  const formatTime = (value) => value && !Number.isNaN(new Date(value).getTime()) ? timeFormat.format(new Date(value)) : 'Time unavailable';
   const formatDateTime = (value) => `${formatDate(value)} · ${formatTime(value)} PHT`;
   const atTime = (time) => `${TODAY}T${time}:00+08:00`;
   const canonicalBarangay = (value) => {
@@ -38,37 +39,69 @@
   const cloneMembers = (members = []) => members.map((member) => ({ ...member }));
   const FIELD_IDS = { firstName: 'first-name', lastName: 'last-name', birthDate: 'birth-date', sex: 'sex', civilStatus: 'civil-status', income: 'income', incomePeriod: 'income-period', region: 'region', province: 'province', address: 'address', barangay: 'barangay', city: 'city', householdSize: 'household-size', contact: 'contact', validId: 'valid-id' };
 
-  const records = [
-    { id: 'RL-0001', firstName: 'Marites', lastName: 'Santos', birthDate: '1982-04-17', sex: 'Female', income: 'Below ₱10,000', address: '12 P. Sanchez Street', barangay: 'Barangay 587', city: 'Manila', householdSize: 4, status: 'released', lastActivity: atTime('08:25'), members: [{ name: 'Jose Santos', relationship: 'Spouse', age: 47 }] },
-    { id: 'RL-0002', firstName: 'Roberto', lastName: 'Mendoza', birthDate: '1978-07-24', sex: 'Male', income: 'Below ₱10,000', address: '18 V. Mapa Street', barangay: 'Barangay 588', city: 'Manila', householdSize: 5, status: 'released', lastActivity: atTime('09:10'), members: [{ name: 'Liza Mendoza', relationship: 'Spouse', age: 45 }] },
-    { id: 'RL-0003', firstName: 'Lourdes', lastName: 'Garcia', birthDate: '1966-11-08', sex: 'Female', income: 'Below ₱10,000', address: '7 Old Sta. Mesa Street', barangay: 'Barangay 589', city: 'Manila', householdSize: 2, status: 'released', lastActivity: atTime('09:45'), members: [{ name: 'Ramon Garcia', relationship: 'Spouse', age: 62 }] },
-    { id: 'RL-0004', firstName: 'Paolo', lastName: 'Rivera', birthDate: '1994-02-16', sex: 'Male', income: 'Below ₱10,000', address: '32 P. Sanchez Street', barangay: 'Barangay 587', city: 'Manila', householdSize: 3, status: 'released', lastActivity: atTime('10:20'), members: [{ name: 'Mia Rivera', relationship: 'Spouse', age: 30 }] },
-    { id: 'RL-0005', firstName: 'Ana', lastName: 'Reyes', birthDate: '1988-03-12', sex: 'Female', income: 'Below ₱10,000', address: '46 V. Mapa Street', barangay: 'Barangay 588', city: 'Manila', householdSize: 4, status: 'ready', lastActivity: atTime('10:05'), members: [{ name: 'Carlo Reyes', relationship: 'Child', age: 12 }] },
-    { id: 'RL-0006', firstName: 'Daniel', lastName: 'Cruz', birthDate: '1990-05-03', sex: 'Male', income: 'Below ₱10,000', address: '21 Old Sta. Mesa Street', barangay: 'Barangay 589', city: 'Manila', householdSize: 3, status: 'ready', lastActivity: atTime('09:55'), members: [{ name: 'Bea Cruz', relationship: 'Spouse', age: 34 }] },
-    { id: 'RL-0007', firstName: 'Celia', lastName: 'Bautista', birthDate: '1959-12-15', sex: 'Female', income: 'Below ₱10,000', address: '54 P. Sanchez Street', barangay: 'Barangay 587', city: 'Manila', householdSize: 2, status: 'ready', lastActivity: atTime('09:30'), members: [] },
-    { id: 'RL-0008', firstName: 'Mateo', lastName: 'Flores', birthDate: '1985-08-09', sex: 'Male', income: 'Below ₱10,000', address: '9 Sample Street', barangay: 'Barangay 591', city: 'Manila', householdSize: 4, status: 'review', lastActivity: atTime('09:15'), members: [] },
-  ].map((record, index) => ({ ...record, region: 'National Capital Region', province: 'Metro Manila', civilStatus: 'Married', income: '7500', incomePeriod: 'monthly', contact: `sample-${index + 1}@example.invalid`, validId: '', registered: true, verified: true }));
-  const claims = records.filter((record) => record.status === 'released').map((record, index) => ({
-    receipt: `DEMO-R-${String(index + 1).padStart(4, '0')}`, recordId: record.id, beneficiary: nameOf(record), householdKey: householdKey(record),
-    householdSize: record.householdSize, package: PACKAGE, quantity: 1, activity: ACTIVITY, batchId: BATCH_ID, batchLabel: BATCH_LABEL, releasedAt: record.lastActivity, method: 'Sample verification', personnelName: 'Maria Garcia', personnelId: 'DSWD-DEMO-04', status: 'Released',
-  }));
-  // A previous-batch claim demonstrates that claim limits apply to the active batch.
-  claims.push({ receipt: 'DEMO-R-PREV01', recordId: 'RL-0005', beneficiary: 'Ana Reyes', householdKey: householdKey(records[4]), householdSize: 4, package: PACKAGE, quantity: 1, activity: ACTIVITY, batchId: 'HABAGAT-MM04-00', batchLabel: 'MM04 · Previous batch', releasedAt: new Date(new Date(atTime('09:00')).getTime() - 7 * 86400000).toISOString(), method: 'Sample verification', personnelName: 'Maria Garcia', personnelId: 'DSWD-DEMO-04', status: 'Released' });
-  let recordSequence = records.length;
-  let receiptSequence = claims.filter((claim) => claim.batchId === BATCH_ID).length;
+  const records = [], claims = [], audit = [];
+  let auditSequence = 0;
   let toastTimer;
-  let currentStep = 'details';
+  let currentStep = 'verify';
   let entrySelected = false;
   let intake = createIntake();
+  let intakeContext = "verification", registrationState = createIntake(), verificationState = intake;
   const mobileNavigation = window.matchMedia('(max-width: 1050px)');
 
   function createIntake() {
     return {
       path: null, recordId: null, pendingRecordId: null, verified: false, verifiedRecordId: null, method: '', manualReason: '', captureMode: 'face', consent: false,
-      detailsSaved: false, assessment: null, completed: false, receipt: null, draftSaved: false, captureComplete: false,
-      fields: { firstName: '', lastName: '', birthDate: '', sex: '', civilStatus: '', income: '', incomePeriod: 'monthly', region: 'National Capital Region', province: 'Metro Manila', address: '', barangay: '', city: 'Manila', householdSize: 1, contact: '', validId: '' }, members: [],
+      detailsSaved: false, profileConfirmed: false, assessment: null, readyAt: null, completed: false, receipt: null, draftSaved: false, captureComplete: false,
+      capture: { face: { attempts: 0, status: 'pending' }, fingerprint: { attempts: 0, status: 'pending' } }, captureFailed: false, template: null, pendingMatch: false, manualApproval: null, duplicateReview: null, historyAccessed: false, verificationId: null, reservation: null, idempotencyKey: null, profileVersion: null, restoredDraft: null, registrationKey: crypto.randomUUID(),
+      enrollment: {simulated:true, consent:false, faceCapturedAt:null, fingerprintCapturedAt:null},
+      fields: { firstName: '', lastName: '', birthDate: '', sex: '', civilStatus: '', income: '', incomePeriod: 'monthly', region: '', province: '', address: '', barangay: '', city: '', householdSize: 1, contact: '', validId: '' }, members: [],
     };
   }
+
+  function logAudit(action, details = {}, recordId = intake.recordId) {
+    const mapped = /capture (failed|quality rejected)/i.test(action) ? 'Capture failure' : /confirmed beneficiary profile/i.test(action) ? 'Profile confirmed' : /rejected.*match/i.test(action) ? 'Match rejected' : /verification restarted/i.test(action) ? 'Verification restarted' : /history exported/i.test(action) ? 'Claim history exported' : /claim history directory accessed/i.test(action) ? 'Claim history viewed' : /beneficiary directory accessed/i.test(action) ? 'Beneficiary directory viewed' : /intake cleared/i.test(action) ? 'Intake cleared' : /release cancelled/i.test(action) ? 'Declined handover' : null;
+    if (!mapped || !currentUser) return Promise.resolve();
+    return api('/api/audit', { method: 'POST', body: { action: mapped, recordId, note: String(details.reason || details.modality || '').slice(0, 500) } }).catch(error => showToast(`Audit could not be saved: ${error.message}`));
+  }
+
+  function renderAudit() {
+    text('audit-count', `${audit.length} saved events`);
+    hidden('audit-empty', audit.length > 0);
+    if ($('audit-list')) $('audit-list').innerHTML = audit.length ? [...audit].reverse().map((event) => `<article class="audit-event"><strong>${escapeHTML(event.action)}</strong><small>${escapeHTML(event.id)} · ${escapeHTML(event.recordId || 'Intake')} · ${escapeHTML(formatDateTime(event.at))} · ${escapeHTML(event.actor)}</small><details class="audit-detail-disclosure"><summary>Event details</summary>${auditDetails(event.details)}</details></article>`).join('') : '<p class="empty-state compact">No activity recorded in this session.</p>';
+  }
+  function auditDetails(value) {
+    if (value === null || value === undefined || value === '') return 'None';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (Array.isArray(value)) return value.length ? `<ul class="audit-values">${value.map((item) => `<li>${auditDetails(item)}</li>`).join('')}</ul>` : 'None';
+    if (typeof value === 'object') {
+      const labels = { oldValues: 'Previous profile', newValues: 'Saved profile', recordId: 'Beneficiary record', possibleRecordId: 'Similar record', goods: 'Actual goods', actualGoods: 'Actual goods', entitlement: 'Assigned goods', references: 'Claim references', template: 'Simulated capture record', templateReference: 'Simulated capture reference', noBiometricData: 'No biometric data collected', varianceRecorded: 'Variance recorded', reviewNote: 'Staff review required', rice: 'Rice in kg', canned: 'Sardine cans', beef: 'Corned beef cans', coffee: 'Coffee sachets', cereal: 'Cereal sachets' };
+      return `<dl class="audit-details">${Object.entries(value).map(([key, item]) => {
+        const label = labels[key] || key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (letter) => letter.toUpperCase());
+        const dated = typeof item === 'string' && /(?:At|Date)$/.test(key) && !Number.isNaN(new Date(item).getTime());
+        const display = dated ? escapeHTML(key.endsWith('Date') ? formatDate(item) : formatDateTime(item)) : auditDetails(item);
+        return `<div><dt>${escapeHTML(label)}</dt><dd>${display}</dd></div>`;
+      }).join('')}</dl>`;
+    }
+    return escapeHTML(value);
+  }
+  function registryAvailable() { return databaseOnline; }
+  function batchActive() { return ($('batch-status')?.value || 'active') === 'active'; }
+  function requireRegistry(errorId = 'verification-error') {
+    if (registryAvailable()) return true;
+    showError(errorId, 'The database is unavailable. Your entries are kept. Use Reconnect before saving or releasing.');
+    return false;
+  }
+  function requireActiveBatch(errorId = 'verification-error') {
+    if (batchActive()) return true;
+    showError(errorId, 'The batch is paused or closed. An active batch is required to verify, assess, or release.');
+    return false;
+  }
+  function goodsText(goods) { return goods ? Object.entries(GOODS).map(([key, label]) => `${goods[key] ?? '—'} ${label}`).join(' · ') : 'Goods unavailable'; }
+  function readActualGoods() { return Object.fromEntries(Object.keys(ENTITLEMENT).map((key) => [key, $(`actual-${key}`) ? $(`actual-${key}`).value.trim() === '' ? NaN : Number($(`actual-${key}`).value) : ENTITLEMENT[key]])); }
+  function validGoods(goods) { return Object.values(goods).every((amount) => Number.isFinite(amount) && Number.isInteger(amount) && amount >= 0) && Object.values(goods).some((amount) => amount > 0); }
+  function hasVariance(goods) { return Object.keys(ENTITLEMENT).some((key) => goods[key] !== ENTITLEMENT[key]); }
+
+  function incompleteClaim(claim) { return !claim.receipt || !claim.batchId || !claim.releasedAt || Number.isNaN(new Date(claim.releasedAt).getTime()) || !claim.goods || Object.keys(ENTITLEMENT).some((key) => !Number.isFinite(claim.goods[key]) || claim.goods[key] < 0); }
 
   function showToast(message) {
     clearTimeout(toastTimer);
@@ -103,7 +136,15 @@
   }
   function showView(view, { updateHash = true, focus = true } = {}) {
     if (!Object.hasOwn(VIEWS, view)) view = 'overview';
-    if (!entrySelected) view = 'registration';
+    if (['registration', 'verification'].includes(view) && intakeContext !== view) {
+      if (mutationBusy) return showToast('Wait for the current save to finish before changing pages.');
+      if (intakeContext === 'registration') { intake.fields = readFields(); registrationState = intake; }
+      else verificationState = intake;
+      intake = view === 'registration' ? registrationState : verificationState;
+      intakeContext = view;
+      if (view === 'registration') { intake.path = 'registration'; writeFields(); }
+      else { writeFields(); assignField('capture-scenario', intake.recordId || intake.pendingRecordId || 'new'); renderCaptureMode(); }
+    }
     document.querySelectorAll('[data-view]').forEach((panel) => { panel.hidden = panel.dataset.view !== view; });
     document.querySelectorAll('[data-view-link]').forEach((link) => {
       const selected = link.dataset.viewLink === view;
@@ -112,34 +153,41 @@
       else link.removeAttribute('aria-current');
     });
     text('page-label', VIEWS[view]);
+    if (registryAvailable() && ['beneficiaries', 'claims'].includes(view)) logAudit(view === 'claims' ? 'Claim history directory accessed' : 'Beneficiary directory accessed', { view }, null);
     closeMenu();
-    if (updateHash && window.location.hash !== `#${view}`) window.history.pushState(null, '', `#${view}`);
-    if (view === 'registration') renderWorkflow();
+    const target = pageURL(view);
+    if (updateHash && window.location.pathname + window.location.hash !== target) window.history.pushState(null, '', target);
+    if (['registration', 'verification'].includes(view)) renderWorkflow();
     if (focus) focusHeading($(view));
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  function pageURL(view) { return ['registration', 'verification'].includes(view) ? `/${view}` : `/#${view}`; }
   function routeFromHash() {
     let hash;
     try { hash = decodeURIComponent(window.location.hash.slice(1)).toLowerCase(); } catch { hash = ''; }
-    const view = LEGACY[hash] || hash;
-    const safeView = !entrySelected ? 'registration' : Object.hasOwn(VIEWS, view) ? view : 'registration';
-    if (window.location.hash !== `#${safeView}`) window.history.replaceState(null, '', `#${safeView}`);
-    showView(safeView, { updateHash: false, focus: false });
+    const pathView = window.location.pathname.replace(/^\/|\/$/g, '');
+    const requested = LEGACY[hash] || hash || pathView || 'overview';
+    const view = Object.hasOwn(VIEWS, requested) ? requested : 'overview';
+    showView(view, {updateHash: true, focus: false});
   }
+
   function hasDraft() {
-    return intake.verified || intake.recordId || intake.draftSaved || intake.members.length > 0 ||
+    return intake.verified || intake.recordId || intake.draftSaved || intake.members.length > 0 || intake.enrollment.faceCapturedAt || intake.enrollment.fingerprintCapturedAt ||
       ['firstName', 'lastName', 'birthDate', 'address'].some((key) => intake.fields[key]);
   }
   function canVisitStep(step) {
     if (!intake.path) return false;
+    if (intake.reservation) return step === 'release';
     if (intake.completed) return step === 'release';
-    if (step === 'details') return intake.path === 'new' || Boolean(intake.recordId);
-    if (step === 'verify') return intake.path === 'returning' || Boolean(registeredRecord() && intake.detailsSaved);
+    if (step === 'verify') return true;
+    if (step === 'details') return intake.verified && (intake.path === 'new' && Boolean(intake.template) || Boolean(intake.recordId));
     if (step === 'eligibility') return intake.verified && intake.detailsSaved && Boolean(intake.assessment);
-    if (step === 'release') return intake.completed || Boolean(intake.assessment?.eligible);
+    if (step === 'release') return registryAvailable() && Boolean(intake.reservation || batchActive() && intake.assessment?.eligible && intake.readyAt);
     return false;
   }
   function showStep(step, focus = true) {
+    if (step === 'details') return editRegistration();
+    if (intakeContext !== 'verification') showView('verification');
     if (!STEPS.includes(step) || !canVisitStep(step)) return showToast('Complete the current step before continuing.');
     currentStep = step;
     renderWorkflow();
@@ -150,11 +198,21 @@
     }
   }
   function renderWorkflow() {
+    document.body.classList.toggle('registration-first', !entrySelected);
+    if (intakeContext === 'registration') {
+      renderEnrollment();
+      hidden('save-draft-button', false);
+      hidden('registration-saved', !intake.detailsSaved || !intake.recordId);
+      text('registration-saved-message', intake.recordId ? `Registration saved · ${nameOf(intake.fields)}` : '');
+      text('registration-draft-status', intake.detailsSaved ? 'Registration saved' : intake.draftSaved ? 'Draft saved' : hasDraft() ? 'Unsaved changes' : '');
+      text('age-preview', validBirthDate(intake.fields.birthDate) ? `${ageFromBirthDate(intake.fields.birthDate)} years old` : 'Age is calculated from the date of birth.');
+      return;
+    }
     hidden('registration-entry', Boolean(intake.path));
     hidden('intake-workflow', !intake.path);
-    hidden('save-draft-button', !intake.path || intake.completed);
+
     document.body.classList.toggle('registration-first', !entrySelected);
-    if (intake.path && !canVisitStep(currentStep)) currentStep = intake.completed ? 'release' : intake.path === 'returning' ? 'verify' : 'details';
+    if (intake.path && !canVisitStep(currentStep)) currentStep = intake.completed ? 'release' : 'verify';
     const done = { verify: intake.verified, details: intake.detailsSaved, eligibility: Boolean(intake.assessment), release: intake.completed };
     document.querySelectorAll('.step-button[data-step]').forEach((button) => {
       const step = button.dataset.step;
@@ -170,14 +228,17 @@
       if (current) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current');
     });
     document.querySelectorAll('[data-step-panel]').forEach((panel) => { panel.hidden = panel.dataset.stepPanel !== currentStep; });
-    text('workflow-progress', `Step ${STEPS.indexOf(currentStep) + 1} of 4`);
-    if ($('continue-details')) $('continue-details').disabled = !intake.verified || !intake.detailsSaved;
-    if ($('capture-button')) $('capture-button').disabled = !registeredRecord() || !intake.detailsSaved;
+    text('workflow-progress', `Step ${STEPS.indexOf(currentStep) + 1} of 3`);
+    if ($('continue-details')) $('continue-details').disabled = !registryAvailable() || !batchActive() || !intake.verified || !intake.detailsSaved || !intake.profileConfirmed;
+    if ($('capture-button')) $('capture-button').disabled = intake.completed || !batchActive() || intake.captureFailed || intake.capture[intake.captureMode]?.status === 'captured';
+    if ($('profile-confirmed')) { $('profile-confirmed').checked = intake.profileConfirmed; $('profile-confirmed').disabled = !registryAvailable() || !intake.verified || !registeredRecord(); }
+    if ($('reject-match')) $('reject-match').disabled = !intake.verified || !registeredRecord();
     const editRegistration = document.querySelector('[data-step-panel="verify"] [data-step="details"]');
-    if (editRegistration) editRegistration.disabled = !registeredRecord();
+    if (editRegistration) editRegistration.disabled = !canVisitStep('details');
     text('age-preview', validBirthDate(intake.fields.birthDate) ? `${ageFromBirthDate(intake.fields.birthDate)} years old` : 'Age is calculated from the date of birth.');
     renderMatchedProfile();
-    hidden('match-result', !intake.captureComplete);
+    hidden('match-result', (!intake.captureComplete && !intake.verified) || !registryAvailable());
+    renderCaptureStatuses();
     renderSummary();
     renderEligibility();
     renderRelease();
@@ -188,6 +249,19 @@
     fields.barangay = canonicalBarangay(fields.barangay);
     fields.householdSize = Number(fields.householdSize);
     return fields;
+  }
+  function renderEnrollment() {
+    const enrollment=intake.enrollment;
+    $('enrollment-consent').checked=enrollment.consent;
+    $('enrollment-consent').disabled=mutationBusy;
+    for(const mode of ['face','fingerprint']) {
+      const capturedAt=enrollment[`${mode}CapturedAt`];
+      text(`enrollment-${mode}-status`, capturedAt ? `Captured · ${formatDateTime(capturedAt)}` : 'Not captured');
+      text(`enroll-${mode}`, capturedAt ? `Retake ${mode}` : `Capture ${mode}`);
+      $(`enroll-${mode}`).disabled=mutationBusy;
+    }
+    const count=Number(Boolean(enrollment.faceCapturedAt))+Number(Boolean(enrollment.fingerprintCapturedAt));
+    text('enrollment-progress', `${count} of 2 captures completed`);
   }
   function assignField(id, value) {
     const field = $(id);
@@ -206,11 +280,15 @@
     renderSummary();
   }
   function updateDraftStatus() {
-    text('draft-status', intake.completed ? 'Release recorded for this activity' : intake.draftSaved ? 'Draft saved for this session' :
-      intake.detailsSaved ? 'Profile saved for this session' : hasDraft() ? 'Changes kept in this tab · save a draft to resume' : 'New intake · session only');
+    if (intakeContext === 'registration') {
+      text('registration-draft-status', intake.detailsSaved ? 'Registration saved' : intake.draftSaved ? 'Draft saved' : hasDraft() ? 'Unsaved changes' : '');
+      return;
+    }
+    text('draft-status', intake.completed ? 'Release recorded' : intake.reservation ? 'Handover pending' : intake.draftSaved ? 'Draft saved' : intake.detailsSaved ? 'Profile saved' : hasDraft() ? 'Unsaved changes' : '');
   }
   function invalidateAssessment() {
     intake.assessment = null;
+    intake.readyAt = null;
     intake.draftSaved = false;
     if ($('receipt-ack')) $('receipt-ack').checked = false;
     showError('form-error', '');
@@ -226,7 +304,7 @@
     text('summary-household', `${size} ${size === 1 ? 'person' : 'people'} · ${fields.barangay || 'Location pending'}`);
     text('summary-method', intake.verified ? intake.method : 'Verification pending');
     const status = intake.completed ? 'released' : intake.assessment?.status || (intake.verified ? 'draft' : 'unverified');
-    text('summary-status', status === 'unverified' ? intake.detailsSaved ? 'Registered · verify at counter' : 'Registration required' : status === 'draft' ? 'Ready for claim checks' : status === 'ready' ? 'Eligible for release' : statusLabel(status));
+    text('summary-status', status === 'unverified' ? 'Capture face and fingerprint first' : status === 'draft' ? intake.detailsSaved ? 'Review profile before assessment' : 'Encode new profile' : status === 'ready' ? intake.readyAt ? 'Ready for distribution' : 'Eligible · personnel confirmation required' : statusLabel(status));
     if ($('summary-status')) $('summary-status').dataset.tone = statusTone(status);
     updateDraftStatus();
   }
@@ -245,19 +323,27 @@
       const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase();
       return `<li class="household-member"><span class="person-avatar">${escapeHTML(initials)}</span><div><strong>${escapeHTML(name)}</strong><small>${escapeHTML(relationship)}${age === null || age === '' ? '' : ` · ${escapeHTML(age)} years`}</small></div>${index === null ? '<span class="badge" data-tone="neutral">Primary</span>' : `<button type="button" class="member-remove" data-remove-member="${index}" aria-label="Remove ${escapeHTML(name)}">Remove</button>`}</li>`;
     };
-    list.innerHTML = memberRow(primary, 'Primary beneficiary', ageFromBirthDate(intake.fields.birthDate), null) + intake.members.map((member, index) => memberRow(member.name, member.relationship, member.age, index)).join('');
+    list.innerHTML = memberRow(primary, 'Primary beneficiary', ageFromBirthDate(intake.fields.birthDate), null) + intake.members.map((member, index) => memberRow(member.name, `${member.relationship}${member.relatedBeneficiaryId ? " · Linked profile" : " · Declared member"}`, member.age, index)).join('');
     text('household-count', `${intake.members.length + 1} listed`);
   }
   function resetIntake(path = null) {
     intake = createIntake();
     intake.path = path;
-    currentStep = path === 'returning' ? 'verify' : 'details';
+    if (intakeContext === 'verification') currentStep = 'verify';
     if ($('identity-query')) $('identity-query').value = '';
     if ($('identity-results')) $('identity-results').innerHTML = '';
     $('manual-form')?.reset();
     if ($('receipt-print')) $('receipt-print').innerHTML = '';
     if ($('receipt-ack')) $('receipt-ack').checked = false;
-    ['verification-error', 'form-error', 'release-error'].forEach((id) => showError(id, ''));
+    if ($('profile-confirmed')) $('profile-confirmed').checked = false;
+    if ($('capture-scenario')) $('capture-scenario').value = path === 'new' ? 'new' : records[0]?.id || 'new';
+    if ($('capture-quality')) $('capture-quality').value = 'clear';
+    Object.entries(ENTITLEMENT).forEach(([key, value]) => assignField(`actual-${key}`, value));
+    assignField('release-variance-reason', '');
+    if ($('duplicate-distinct')) $('duplicate-distinct').checked = false;
+    assignField('duplicate-note', '');
+    hidden('duplicate-review', true);
+    ['verification-error', 'form-error', 'release-error', 'enrollment-error'].forEach((id) => showError(id, ''));
     writeFields();
     renderCaptureMode();
     renderWorkflow();
@@ -267,18 +353,38 @@
   }
   function beginIntake(path) {
     entrySelected = true;
+    showView('verification');
+    if (intakeContext !== 'verification') return;
     resetIntake(path);
-    showView('registration');
+    verificationState = intake;
     focusHeading(document.querySelector(`[data-step-panel="${currentStep}"]`));
   }
+  function newRegistration() {
+    showView('registration');
+    if (intakeContext !== 'registration') return;
+    resetIntake('registration'); registrationState = intake;
+    focusHeading($('registration'));
+  }
+  function editRegistration() {
+    if (intakeContext === 'registration') return;
+    const record = registeredRecord();
+    if (!record || intake.reservation) return showToast('Select a saved beneficiary before editing registration.');
+    const fields = {...intake.fields}, members = cloneMembers(intake.members), version = intake.profileVersion;
+    showView('registration');
+    if (intakeContext !== 'registration') return;
+    intake = {...createIntake(), path:'registration', recordId:record.id, fields, members, profileVersion:version, detailsSaved:true, ...(record.biometricEnrollment?{enrollment:{...record.biometricEnrollment}}:{})};
+    registrationState = intake; writeFields(); renderWorkflow();
+  }
+
   function prepareReturningRecord(id) {
     const record = records.find((item) => item.id === id && item.registered);
     if (!record) return;
     beginIntake('returning');
     intake.pendingRecordId = id;
+    assignField('capture-scenario', id);
     if ($('identity-query')) $('identity-query').value = id;
     renderIdentityResults([record]);
-    showToast('Acknowledge the notice, select the existing profile, then verify at the counter.');
+    showToast('Beneficiary selected. Complete both identity checks.');
     $('capture-consent')?.focus();
   }
   function showDuplicateError(record, message) {
@@ -286,17 +392,16 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'button secondary small';
-    button.dataset.action = 'review-existing';
+    button.dataset.action = 'link-existing-profile';
     button.dataset.recordId = record.id;
-    button.textContent = 'Review existing registration';
+    button.textContent = 'Link to existing profile';
     $('form-error')?.appendChild(button);
+    intake.duplicateReview = record.id;
+    hidden('duplicate-review', false);
   }
   function profileChanged() {
     intake.detailsSaved = false;
-    intake.verified = false;
-    intake.verifiedRecordId = null;
-    intake.captureComplete = false;
-    intake.method = '';
+    intake.profileConfirmed = false;
     invalidateAssessment();
     renderHousehold();
   }
@@ -317,55 +422,119 @@
       const selected = button.dataset.capture === intake.captureMode;
       button.classList.toggle('active', selected);
       button.setAttribute('aria-pressed', String(selected));
+      button.disabled = intake.completed || (button.dataset.capture === 'manual' && !intake.captureFailed);
     });
     hidden('capture-panel', manual);
     hidden('manual-panel', !manual);
     hidden('manual-form', !manual);
     $('scanner')?.classList.toggle('fingerprint-mode', fingerprint);
-    text('scanner-label', fingerprint ? 'Fingerprint preview · no device connected' : 'Face preview · no camera access');
-    text('device-state', fingerprint ? 'Demo fingerprint capture' : 'Demo face capture');
-    if ($('capture-button')) $('capture-button').innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-scan"></use></svg>${fingerprint ? 'Simulate fingerprint' : 'Simulate face scan'}`;
+    text('scanner-label', fingerprint ? 'Fingerprint preview' : 'Face preview');
+    text('device-state', fingerprint ? 'Fingerprint capture' : 'Face capture');
+    if ($('capture-button')) $('capture-button').innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-scan"></use></svg>${fingerprint ? 'Capture fingerprint' : 'Capture face'}`;
+    renderCaptureStatuses();
+  }
+  function renderCaptureStatuses() {
+    ['face', 'fingerprint'].forEach((mode) => {
+      const capture = intake.capture[mode];
+      text(`capture-${mode}-status`, capture.status === 'captured' ? 'Captured' : capture.status === 'failed' ? `Capture failed · ${capture.attempts} attempt${capture.attempts === 1 ? '' : 's'}` : capture.attempts ? `Unclear · retry ${capture.attempts} of 3` : 'Awaiting capture');
+    });
   }
   function selectRecord(id) {
-    if (!requireConsent()) return;
+    if (!requireConsent() || !requireRegistry() || intake.completed) return;
     const record = records.find((item) => item.id === id);
     if (!record?.registered) return;
-    const mode = intake.captureMode;
-    intake = createIntake();
-    intake.path = 'returning';
-    intake.captureMode = mode;
-    intake.consent = true;
-    intake.recordId = record.id;
-    intake.fields = Object.fromEntries(Object.keys(FIELD_IDS).map((key) => [key, record[key]]));
-    intake.members = cloneMembers(record.members);
-    intake.detailsSaved = profileComplete(intake.fields, intake.members);
-    writeFields();
-    renderCaptureMode();
-    showStep('verify');
-    showToast(`Registered profile ${record.id} loaded. Verify this beneficiary at the counter.`);
+    assignField('capture-scenario', record.id);
+    if ((intake.verified || intake.capture.face.attempts || intake.capture.fingerprint.attempts) && !(intake.captureFailed && !intake.verified)) restartCapture({ auditReason: 'Personnel selected a different sample scenario from search' });
+    intake.pendingRecordId = record.id;
+    showToast('Beneficiary selected. Complete identity verification.');
   }
   function renderIdentityResults(matches) {
     const results = $('identity-results');
     if (!results) return;
-    results.innerHTML = matches.length ? matches.map((record) => `<div class="identity-result"><div><strong>${escapeHTML(nameOf(record))}</strong><small>${escapeHTML(record.id)} · ${escapeHTML(record.barangay)} · sample record</small></div>${badge(record.status)}<button class="button secondary" type="button" data-select-record="${escapeHTML(record.id)}">Select record</button></div>`).join('') : '<p class="empty-state compact">No registered profile found. Choose New Registration before claiming relief goods.</p><button class="button secondary" type="button" data-action="new-registration">New Registration</button>';
+    results.innerHTML = matches.length ? matches.map((record) => `<div class="identity-result"><div><strong>${escapeHTML(nameOf(record))}</strong><small>${escapeHTML(record.id)} · registered profile</small></div><button class="button secondary" type="button" data-select-record="${escapeHTML(record.id)}">Select profile</button></div>`).join('') : '<p class="empty-state compact">No registered profile found. Register the beneficiary on the separate Registration page first.</p><button class="button secondary" type="button" data-action="new-registration">Open Registration</button>';
+  }
+  function loadVerifiedRecord(record, method) {
+    const draft = intake.restoredDraft?.recordId === record.id ? intake.restoredDraft : null;
+    intake.path = 'returning';
+    intake.recordId = record.id;
+    intake.pendingRecordId = null;
+    intake.verified = true;
+    intake.verifiedRecordId = record.id;
+    intake.method = method;
+    intake.profileConfirmed = false;
+    intake.fields = draft ? { ...draft.fields } : Object.fromEntries(Object.keys(FIELD_IDS).map((key) => [key, record[key]]));
+    intake.members = cloneMembers(draft ? draft.members : record.members);
+    intake.profileVersion = draft ? draft.version : record.version;
+    intake.restoredDraft = null;
+    intake.detailsSaved = !draft && profileComplete(intake.fields, intake.members);
+    intake.historyAccessed = true;
+    record.verified = true;
+    invalidateAssessment();
+    logAudit('Profile accessed after verification', { method }, record.id);
+    const history = claims.filter((claim) => claim.recordId === record.id);
+    logAudit('Individual claim history retrieved', { references: history.map((claim) => claim.receipt || 'Missing reference'), incomplete: history.some(incompleteClaim) }, record.id);
+    if (history.some(incompleteClaim)) logAudit('Incomplete claim flagged for staff review', { references: history.filter(incompleteClaim).map((claim) => claim.receipt || 'Missing reference') }, record.id);
+    writeFields();
+    renderWorkflow();
+  }
+  async function resolveCapturedMatch() {
+    if (!intake.pendingMatch || !requireRegistry() || !requireActiveBatch()) return;
+    const scenario = $('capture-scenario')?.value || 'new';
+    const record = records.find(item => item.id === scenario);
+    if (!record) { intake.pendingMatch = false; newRegistration(); showToast('No registered beneficiary selected. Save the profile on Registration, then open Verification.'); return; }
+    mutationBusy = true;
+    try {
+      const verification = await api('/api/verification', { method: 'POST', body: { method: 'simulated', recordId: record?.id || null, face: true, fingerprint: true, consent: intake.consent } });
+      intake.verificationId = verification.id; intake.pendingMatch = false;
+      if (record) {
+        const fresh = await api(`/api/beneficiaries/${encodeURIComponent(record.id)}`);
+        records.splice(records.findIndex(p => p.id === record.id), 1, fresh.record);
+        claims.splice(0, claims.length, ...claims.filter(c => c.recordId !== record.id), ...fresh.claims);
+        loadVerifiedRecord(fresh.record, 'Face + fingerprint (demo)');
+        text('capture-result-status', `Review the profile and claim history for ${nameOf(record)}.`);
+      } else {
+        intake.path = 'new'; intake.recordId = null; intake.verified = true; intake.verifiedRecordId = null;
+        intake.method = 'Simulated face + fingerprint · Not Found'; intake.detailsSaved = false;
+        invalidateAssessment(); writeFields(); showStep('details');
+        showToast('No matching profile. Register the beneficiary first.');
+      }
+    } catch (error) { intake.pendingMatch = true; showError('verification-error', error.message); }
+    finally { mutationBusy = false; }
+  }
+
+  function restartCapture({ auditReason = '', preserveFields = false } = {}) {
+    if (auditReason) logAudit('Verification restarted', { reason: auditReason });
+    const fields = intake.fields;
+    const members = intake.members;
+    const consent = intake.consent;
+    const scenario = $('capture-scenario')?.value;
+    intake = createIntake();
+    intake.path = scenario === 'new' ? 'new' : 'counter';
+    intake.consent = consent;
+    if (preserveFields) { intake.fields = fields; intake.members = members; }
+    currentStep = 'verify';
+    writeFields();
+    renderCaptureMode();
+    renderWorkflow();
   }
   function renderMatchedProfile() {
-    const record = registeredRecord();
+    const record = registryAvailable() && intake.verified ? registeredRecord() : null;
     hidden('matched-profile', !record);
     hidden('claim-history-preview', !record);
     hidden('registration-status', !intake.detailsSaved || !record);
-    text('registration-status', intake.verified && intake.verifiedRecordId === record?.id ? `Demo counter verification complete · ${record.id}. Continue to the current-batch claim check.` : intake.path === 'new' ? `Registration saved · ${record?.id || ''}. Continue with identity verification at the counter.` : `Registered beneficiary · ${record?.id || ''}. The selected profile still requires counter verification.`);
+    text('registration-status', record ? `Verified profile · ${record.id}. ${intake.profileConfirmed ? 'Profile confirmed; continue to assessment.' : 'Personnel must confirm the profile before assessment.'}` : 'Complete face and fingerprint capture first.');
     if (!record) return;
     const age = ageFromBirthDate(record.birthDate);
-    if ($('matched-profile')) $('matched-profile').innerHTML = `<h3>${escapeHTML(nameOf(record))}</h3><dl class="record-facts"><div><dt>Registered profile</dt><dd>${escapeHTML(record.id)}</dd></div><div><dt>Age / date of birth</dt><dd>${age} years · ${escapeHTML(record.birthDate)}</dd></div><div><dt>Location</dt><dd>${escapeHTML(record.address)}, ${escapeHTML(record.barangay)}, ${escapeHTML(record.city)}, ${escapeHTML(record.province)}, ${escapeHTML(record.region)}</dd></div><div><dt>Sex / gender · civil status</dt><dd>${escapeHTML(record.sex)} · ${escapeHTML(record.civilStatus)}</dd></div><div><dt>Household</dt><dd>${record.householdSize} people · ₱${Number(record.income).toLocaleString('en-PH')} ${escapeHTML(record.incomePeriod)}</dd></div><div><dt>Contact</dt><dd>${escapeHTML(record.contact)}</dd></div></dl>`;
-    const history = claims.filter((claim) => claim.recordId === record.id || claim.householdKey === householdKey(record)).sort((a, b) => new Date(b.releasedAt) - new Date(a.releasedAt));
-    if ($('claim-history-preview')) $('claim-history-preview').innerHTML = `<h3>Registered household claim history</h3><p class="field-hint">Active batch: ${escapeHTML(BATCH_LABEL)}. Earlier batches do not block this batch.</p>${history.length ? `<ul class="claim-history-list">${history.map((claim) => `<li><strong>${escapeHTML(claim.receipt)}</strong><span class="badge" data-tone="${claim.batchId === BATCH_ID ? 'warning' : 'neutral'}">${claim.batchId === BATCH_ID ? 'Current batch · already claimed' : 'Previous batch'}</span><small>${escapeHTML(claim.batchLabel)} · ${escapeHTML(formatDateTime(claim.releasedAt))}</small><small>${claim.quantity} × ${escapeHTML(claim.package)} · ${escapeHTML(claim.personnelName)}</small></li>`).join('')}</ul>` : '<p class="empty-state compact">No previous releases recorded for this registered household.</p>'}`;
+    if ($('matched-profile')) $('matched-profile').innerHTML = `<h3>${escapeHTML(nameOf(record))}</h3><dl class="record-facts"><div><dt>Registered profile</dt><dd>${escapeHTML(record.id)}</dd></div><div><dt>Age / date of birth</dt><dd>${age} years · ${escapeHTML(record.birthDate)}</dd></div><div><dt>Location</dt><dd>${escapeHTML(record.address)}, ${escapeHTML(record.barangay)}, ${escapeHTML(record.city)}, ${escapeHTML(record.province)}, ${escapeHTML(record.region)}</dd></div><div><dt>Sex / gender · civil status</dt><dd>${escapeHTML(record.sex)} · ${escapeHTML(record.civilStatus)}</dd></div><div><dt>Household</dt><dd>${record.householdSize} people · ₱${Number(record.income).toLocaleString('en-PH')} ${escapeHTML(record.incomePeriod)}</dd></div><div><dt>Contact</dt><dd>${escapeHTML(record.contact)}</dd></div><div><dt>Family members and relations</dt><dd>${record.members.length ? record.members.map((member) => `${escapeHTML(member.name)} · ${escapeHTML(member.relationship)}${member.age === null ? '' : ` · ${escapeHTML(member.age)} years`}`).join('<br>') : 'No linked family members'}</dd></div></dl>`;
+    const history = claims.filter((claim) => claim.recordId === record.id).sort((a, b) => new Date(b.releasedAt) - new Date(a.releasedAt));
+    if ($('claim-history-preview')) $('claim-history-preview').innerHTML = `<h3>Individual claim history</h3><p class="field-hint">Active batch: ${escapeHTML(BATCH_LABEL)}. Only this individual’s claims are checked.</p>${history.length ? `<ul class="claim-history-list">${history.map(claimHistoryRow).join('')}</ul>` : '<p class="empty-state compact">No Previous Claims for this beneficiary.</p>'}`;
   }
-  function hasHouseholdClaim(record, id = record.id) {
-    return claims.some((claim) => claim.batchId === BATCH_ID && (claim.recordId === id || claim.householdKey === householdKey(record)));
+  function claimHistoryRow(claim) {
+    return `<li><strong>${escapeHTML(claim.receipt || 'Reference unavailable')}</strong><span class="badge" data-tone="${claim.batchId === BATCH_ID || incompleteClaim(claim) ? 'warning' : 'neutral'}">${incompleteClaim(claim) ? 'Incomplete record · staff review' : claim.batchId === BATCH_ID ? 'Current batch · already claimed' : 'Previous batch'}</span><small>${escapeHTML(claim.batchLabel || claim.batchId || 'Batch unavailable')} · ${escapeHTML(formatDateTime(claim.releasedAt))}</small><small>${escapeHTML(goodsText(claim.goods))} · ${escapeHTML(claim.personnelName || 'Personnel unavailable')}</small>${claim.varianceReason ? `<small>Variance: ${escapeHTML(claim.varianceReason)} · Staff review flagged</small>` : ''}</li>`;
   }
+  function hasBeneficiaryClaim(record, id = record.id) { return claims.some((claim) => claim.batchId === BATCH_ID && claim.recordId === id); }
   function currentClaims() { return claims.filter((claim) => claim.batchId === BATCH_ID); }
-  function availablePackages() { return Math.max(0, ALLOCATED - currentClaims().reduce((total, claim) => total + claim.quantity, 0)); }
+
   function validBirthDate(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value > TODAY) return false;
     const parsed = new Date(`${value}T12:00:00Z`);
@@ -374,29 +543,24 @@
   function profileComplete(fields, members = []) {
     return ['firstName', 'lastName', 'sex', 'civilStatus', 'region', 'province', 'address', 'barangay', 'city', 'contact'].every((key) => Boolean(String(fields[key] ?? '').trim())) && String(fields.income ?? '').trim() !== '' && Number.isFinite(Number(fields.income)) && Number(fields.income) >= 0 && ['monthly', 'annual'].includes(fields.incomePeriod) && validBirthDate(fields.birthDate) && Number.isInteger(fields.householdSize) && fields.householdSize >= members.length + 1 && fields.householdSize >= 1 && fields.householdSize <= 20;
   }
-  function assess(fields, id, members) {
-    const claimed = hasHouseholdClaim(fields, id);
-    const complete = profileComplete(fields, members);
-    const available = availablePackages();
-    const registered = records.find((record) => record.id === id && record.registered);
-    const verified = Boolean(registered && intake.verified && intake.verifiedRecordId === id);
-    const rules = [
-      { title: 'Registration on file', passed: Boolean(registered && profileComplete(registered, registered.members) && intake.detailsSaved), description: registered && intake.detailsSaved ? `Registered beneficiary ${id}; profile saved before verification.` : 'Save a complete registered profile before claiming relief goods.' },
-      { title: 'Identity verification', passed: verified, description: verified ? `${intake.method}${intake.manualReason ? ` · Reason: ${intake.manualReason}` : ''}` : 'Select a registered profile, acknowledge the notice, and complete counter verification.' },
-      { title: 'Household profile', passed: complete, description: complete ? `${fields.householdSize} ${fields.householdSize === 1 ? 'person' : 'people'} declared; required details are complete.` : 'Complete required details and check the household size.' },
-      { title: 'Current batch claim history', passed: !claimed, description: claimed ? `This beneficiary or household already received a package in ${BATCH_LABEL}. Another release is blocked.` : `No release recorded for this beneficiary or household in ${BATCH_LABEL}. Earlier batches do not affect this check.` },
-      { title: 'Package availability', passed: available > 0, description: available > 0 ? `${available} family food packages available. One package is assigned per household.` : 'No packages remain. A release cannot be recorded.' },
-    ];
-    const eligible = rules.every((rule) => rule.passed);
-    return { rules, eligible, status: claimed ? 'released' : eligible ? 'ready' : 'review' };
+  async function performAssessment() {
+    if (!requireRegistry() || !requireActiveBatch() || mutationBusy) return false;
+    if (!registeredRecord() || !intake.detailsSaved || !intake.profileConfirmed) { showError('verification-error', 'Save and confirm this beneficiary profile first.'); return false; }
+    mutationBusy = true;
+    try {
+      intake.assessment = await api('/api/assessments', { method: 'POST', body: { recordId: intake.recordId, verificationId: intake.verificationId, profileConfirmed: true } });
+      intake.readyAt = null; await refreshWorkspace(); showStep('eligibility'); return true;
+    } catch (error) { showError('verification-error', error.message); return false; }
+    finally { mutationBusy = false; }
   }
+
   function renderEligibility() {
     const result = intake.assessment;
     if ($('eligibility-banner')) $('eligibility-banner').dataset.tone = result ? result.eligible ? 'success' : result.status === 'released' ? 'danger' : 'warning' : 'neutral';
-    text('eligibility-title', !result ? 'Assessment pending' : result.eligible ? 'Eligible for one relief package' : result.status === 'released' ? 'Household already served' : 'Station review required');
-    text('eligibility-description', !result ? 'Save a verified household profile to assess the demo rules.' : result.eligible ? 'All demo policy checks passed. Review the package and confirm receipt before recording the release.' : result.status === 'released' ? 'A claim already exists in this activity. View claim history for the recorded handover.' : 'Review the checks below with your station lead. This prototype does not offer eligibility overrides.');
+    text('eligibility-title', !result ? 'Assessment pending' : result.eligible ? intake.readyAt ? 'Ready for distribution' : 'Eligible · personnel confirmation required' : result.status === 'released' ? 'Already Claimed · Not Eligible' : 'Not Eligible · station review required');
+    text('eligibility-description', !result ? 'Verify and confirm the profile before assessment.' : result.eligible ? intake.readyAt ? `Eligibility confirmed · ${formatDateTime(intake.readyAt)}` : 'All checks passed. Confirm eligibility to prepare the handover.' : result.status === 'released' ? 'This beneficiary has already received goods in this batch.' : 'Review the failed checks before proceeding.');
     if ($('rule-list')) $('rule-list').innerHTML = result ? result.rules.map((rule) => `<div class="rule-row"><span class="rule-icon" data-tone="${rule.passed ? 'success' : 'warning'}" aria-hidden="true">${rule.passed ? '✓' : '!'}</span><div><strong>${escapeHTML(rule.title)}</strong><small>${escapeHTML(rule.description)}</small></div><span class="badge" data-tone="${rule.passed ? 'success' : 'warning'}">${rule.passed ? 'Passed' : 'Review'}</span></div>`).join('') : '';
-    if ($('release-button')) $('release-button').disabled = !result?.eligible || intake.completed;
+    if ($('release-button')) $('release-button').disabled = !result?.eligible || intake.completed || !registryAvailable() || !batchActive();
   }
   function renderRelease() {
     text('release-name', nameOf(intake.fields) || 'Beneficiary');
@@ -407,96 +571,107 @@
     hidden('release-content', intake.completed);
     hidden('release-success', !intake.completed);
     const personnelReady = Boolean($('personnel-name')?.value.trim() && $('personnel-id')?.value.trim());
-    if ($('confirm-release')) $('confirm-release').disabled = intake.completed || !intake.assessment?.eligible || !$('receipt-ack')?.checked || !personnelReady;
+    const goods = readActualGoods();
+    const prepared = Boolean(intake.reservation);
+    const variance = hasVariance(goods);
+    hidden('release-variance-notice', !variance);
+    text('release-variance-notice', 'Actual items differ from the entitlement. A reason is required; the reason is saved with the transaction.');
+    if (!intake.completed) {
+      const releaseProblem = !registryAvailable() ? 'Registry unavailable. The release is paused; restore the registry and retry eligibility.' : !batchActive() && !prepared ? 'The batch is paused or closed. No new handover may be prepared.' : !validGoods(goods) ? 'Enter finite, nonnegative whole quantities for every item, with at least one item released.' : variance && !$('release-variance-reason')?.value.trim() ? 'Enter a reason for the difference from the assigned entitlement.' : '';
+      if (releaseProblem && !prepared) showError('release-error', releaseProblem);
+    }
+    if ($('confirm-release')) $('confirm-release').disabled = mutationBusy || intake.completed || !registryAvailable() || !prepared || !$('receipt-ack')?.checked;
+    if ($('reserve-release')) { $('reserve-release').hidden = prepared; $('reserve-release').disabled = mutationBusy || !registryAvailable() || !batchActive() || !intake.readyAt || !validGoods(goods) || variance && !$('release-variance-reason')?.value.trim(); }
+    if ($('receipt-ack')) $('receipt-ack').disabled = !prepared;
+    Object.keys(ENTITLEMENT).forEach(key => { if ($(`actual-${key}`)) $(`actual-${key}`).disabled = prepared; });
+    if ($('release-variance-reason')) $('release-variance-reason').disabled = prepared;
+    hidden('handover-prepared', !prepared);
+    text('handover-prepared', prepared ? `Handover ${intake.reservation.id} is saved as pending. Hand over the goods, then confirm receipt. If saving fails, keep this reference and retry; do not hand over a second package.` : '');
     if (intake.receipt) {
       text('receipt-number', intake.receipt.receipt);
       text('receipt-beneficiary', intake.receipt.beneficiary);
       text('receipt-time', formatDateTime(intake.receipt.releasedAt));
       text('receipt-personnel', `${intake.receipt.personnelName} · ${intake.receipt.personnelId}`);
       text('receipt-batch', intake.receipt.batchLabel);
+      text('receipt-goods', goodsText(intake.receipt.goods));
       renderPrintableReceipt(intake.receipt);
     }
   }
   function renderPrintableReceipt(receipt) {
     if (!$('receipt-print')) return;
-    $('receipt-print').innerHTML = `<div class="receipt-print-inner"><div class="receipt-branding"><img class="receipt-dswd-logo" src="assets/branding/dswd-logo.png" alt="Department of Social Welfare and Development" width="939" height="265" /><img class="receipt-bagong-logo" src="assets/branding/bagong-pilipinas-logo.png" alt="Bagong Pilipinas" width="692" height="648" /></div><p>DSWD relief distribution · demonstration receipt</p><h1>Relief package acknowledgment</h1><p>This is a fictional prototype transaction.</p><dl><dt>Receipt</dt><dd>${escapeHTML(receipt.receipt)}</dd><dt>Beneficiary</dt><dd>${escapeHTML(receipt.beneficiary)}</dd><dt>Sample record ID</dt><dd>${escapeHTML(receipt.recordId)}</dd><dt>Activity / batch</dt><dd>${escapeHTML(receipt.activity)} · ${escapeHTML(receipt.batchLabel)}</dd><dt>Package</dt><dd>${escapeHTML(receipt.quantity)} × ${escapeHTML(receipt.package)}</dd><dt>Released</dt><dd>${escapeHTML(formatDateTime(receipt.releasedAt))}</dd><dt>Personnel in charge</dt><dd>${escapeHTML(receipt.personnelName)} · ${escapeHTML(receipt.personnelId)}</dd></dl><p>Receipt acknowledgment confirmed by the operator in this demo.</p></div>`;
+    $('receipt-print').innerHTML = `<div class="receipt-print-inner"><div class="receipt-branding"><img class="receipt-dswd-logo" src="assets/branding/dswd-logo.png" alt="Department of Social Welfare and Development" width="939" height="265" /><img class="receipt-bagong-logo" src="assets/branding/bagong-pilipinas-logo.png" alt="Bagong Pilipinas" width="692" height="648" /></div><p>DSWD relief distribution · release receipt</p><h1>Relief distribution acknowledgment</h1><p>Saved distribution transaction.</p><dl><dt>Receipt</dt><dd>${escapeHTML(receipt.receipt)}</dd><dt>Beneficiary</dt><dd>${escapeHTML(receipt.beneficiary)}</dd><dt>Beneficiary record ID</dt><dd>${escapeHTML(receipt.recordId)}</dd><dt>Activity / batch</dt><dd>${escapeHTML(receipt.activity)} · ${escapeHTML(receipt.batchLabel)}</dd><dt>Actual goods released</dt><dd>${escapeHTML(goodsText(receipt.goods))}</dd><dt>Variance reason</dt><dd>${escapeHTML(receipt.varianceReason || 'Entitlement released in full')}</dd><dt>Released</dt><dd>${escapeHTML(formatDateTime(receipt.releasedAt))}</dd><dt>Personnel in charge</dt><dd>${escapeHTML(receipt.personnelName)} · ${escapeHTML(receipt.personnelId)}</dd></dl><p>Receipt acknowledgment recorded by the signed-in staff member.</p></div>`;
   }
   function synchronizeStatuses() {
-    records.forEach((record) => { record.status = hasHouseholdClaim(record) ? 'released' : !record.verified ? 'registered' : profileComplete(record, record.members) && availablePackages() > 0 ? 'ready' : 'review'; });
+    records.forEach((record) => { record.status = hasBeneficiaryClaim(record) ? 'released' : !record.verified ? 'registered' : profileComplete(record, record.members) ? 'ready' : 'review'; });
   }
-  function tableName(record) { return `<strong>${escapeHTML(nameOf(record))}</strong><small>${escapeHTML(record.id)} · sample record</small>`; }
+  function tableName(record) { return `<strong>${escapeHTML(nameOf(record))}</strong><small>${escapeHTML(record.id)} · registered record</small>`; }
   function openButton(record) { return `<button class="table-action" type="button" data-open-record="${escapeHTML(record.id)}" aria-label="View ${escapeHTML(nameOf(record))}">View <span aria-hidden="true">↗</span></button>`; }
-  function setProgress(id, percent) {
-    const element = $(id);
-    if (!element) return;
-    const value = Math.max(0, Math.min(100, percent));
-    element.style.width = `${value}%`;
-    element.style.setProperty('--progress', `${value}%`);
-    element.setAttribute('role', 'progressbar');
-    element.setAttribute('aria-label', id === 'hero-progress' ? 'Allocated packages released' : 'Allocated packages available');
-    element.setAttribute('aria-valuemin', '0');
-    element.setAttribute('aria-valuemax', '100');
-    element.setAttribute('aria-valuenow', String(Math.round(value)));
-  }
   function renderDashboard() {
+    document.querySelectorAll('[data-activity-label]').forEach(element => { element.textContent = ACTIVITY || 'Distribution'; });
+    document.querySelectorAll('[data-batch-label]').forEach(element => { element.textContent = BATCH_LABEL || '—'; });
+    Object.entries(ENTITLEMENT).forEach(([key,quantity]) => text(`entitlement-${key}`, `${quantity}`));
+    const batchState = $('batch-status')?.value || 'active';
+    text('sidebar-batch-status', `${batchState[0].toUpperCase()}${batchState.slice(1)} batch`);
+    text('hero-batch-status', `${batchState[0].toUpperCase()}${batchState.slice(1)} batch`);
     const batchClaims = currentClaims();
     const released = batchClaims.reduce((total, claim) => total + claim.quantity, 0);
-    const available = availablePackages();
     text('stat-households', records.length);
     text('stat-released', released);
     text('stat-ready', records.filter((record) => record.status === 'ready').length);
     text('stat-review', records.filter((record) => ['registered', 'review'].includes(record.status)).length);
-    setProgress('hero-progress', released / ALLOCATED * 100);
-    text('hero-progress-label', `${released} of ${ALLOCATED} packages released`);
-    text('stock-count', available);
-    setProgress('stock-progress', available / ALLOCATED * 100);
-    text('stock-detail', `${available} available · ${released} released today`);
-    const recent = [...records].sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity)).slice(0, 5);
+    text('hero-progress-label', `${released} confirmed handovers in this batch`);
+    const recent = registryAvailable() ? [...records].sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity)).slice(0, 5) : [];
     if ($('recent-beneficiaries')) $('recent-beneficiaries').innerHTML = recent.map((record) => `<tr><td>${tableName(record)}</td><td>${escapeHTML(record.barangay)}</td><td>${record.householdSize}</td><td>${badge(record.status)}</td><td>${openButton(record)}</td></tr>`).join('');
-    text('recent-count', `${recent.length} recent households`);
-    const latest = [...batchClaims].sort((a, b) => new Date(b.releasedAt) - new Date(a.releasedAt)).slice(0, 3);
+    text('recent-count', `${recent.length} recent beneficiaries`);
+    const latest = registryAvailable() ? [...batchClaims].sort((a, b) => new Date(b.releasedAt) - new Date(a.releasedAt)).slice(0, 3) : [];
     if ($('activity-feed')) $('activity-feed').innerHTML = latest.map((claim) => `<li><span class="activity-mark"><svg class="icon" aria-hidden="true"><use href="#i-package"></use></svg></span><div><strong>Package released to ${escapeHTML(claim.beneficiary)}</strong><small>${escapeHTML(claim.receipt)} · ${escapeHTML(claim.recordId)}</small></div><time datetime="${escapeHTML(claim.releasedAt)}">${escapeHTML(formatTime(claim.releasedAt))}</time></li>`).join('');
     const hourFormatter = new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, hour: '2-digit', hourCycle: 'h23' });
     const hours = new Set(Array.from({ length: 8 }, (_, index) => index + 8));
-    batchClaims.forEach((claim) => hours.add(Number(hourFormatter.format(new Date(claim.releasedAt)))));
+    const datedClaims = batchClaims.filter((claim) => claim.releasedAt && !Number.isNaN(new Date(claim.releasedAt).getTime()));
+    datedClaims.forEach((claim) => hours.add(Number(hourFormatter.format(new Date(claim.releasedAt)))));
     const hourly = [...hours].sort((a, b) => a - b).map((hour) => ({ hour, count: 0 }));
-    batchClaims.forEach((claim) => { const bucket = hourly.find((item) => item.hour === Number(hourFormatter.format(new Date(claim.releasedAt)))); if (bucket) bucket.count += claim.quantity; });
+    datedClaims.forEach((claim) => { const bucket = hourly.find((item) => item.hour === Number(hourFormatter.format(new Date(claim.releasedAt)))); if (bucket) bucket.count += claim.quantity; });
     const max = Math.max(4, Math.ceil(Math.max(...hourly.map((item) => item.count)) / 4) * 4);
     const axis = document.querySelector('.chart-axis');
     if (axis) axis.innerHTML = Array.from({ length: 5 }, (_, index) => `<span>${max - index * max / 4}</span>`).join('');
     if ($('hourly-chart')) $('hourly-chart').innerHTML = hourly.map((item) => `<div class="chart-column" aria-label="${String(item.hour).padStart(2, '0')}:00: ${item.count} packages"><div class="chart-bar${item.count ? '' : ' empty'}" style="--bar-height: ${item.count / max * 100}%" title="${item.count} packages"></div><span>${String(item.hour).padStart(2, '0')}</span></div>`).join('');
-    if ($('hourly-chart')) $('hourly-chart').setAttribute('aria-label', `Packages released by hour today: ${hourly.map((item) => `${String(item.hour).padStart(2, '0')}:00, ${item.count}`).join('; ')}.`);
+    if ($('hourly-chart')) $('hourly-chart').setAttribute('aria-label', `Packages released by hour in the current batch: ${hourly.map((item) => `${String(item.hour).padStart(2, '0')}:00, ${item.count}`).join('; ')}.`);
     if ($('chart-total')) $('chart-total').innerHTML = `${released} <span>packages released</span>`;
   }
   function renderDirectory() {
+    if (!registryAvailable()) {
+      if ($('beneficiaries-table')) $('beneficiaries-table').innerHTML = '<tr><td colspan="6" class="empty-state">Registry unavailable. Restore the registry to view beneficiary profiles.</td></tr>';
+      text('beneficiary-count', 'Registry unavailable');
+      return;
+    }
     const query = normalize($('beneficiary-search')?.value);
     const filter = $('beneficiary-status')?.value || 'all';
     const matches = [...records].filter((record) => (!query || normalize(`${nameOf(record)} ${record.id} ${record.barangay}`).includes(query)) && (filter === 'all' || record.status === filter)).sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
-    if ($('beneficiaries-table')) $('beneficiaries-table').innerHTML = matches.length ? matches.map((record) => `<tr><td>${tableName(record)}</td><td>${escapeHTML(record.barangay)}<small>${escapeHTML(record.city)}</small></td><td>${record.householdSize} ${record.householdSize === 1 ? 'person' : 'people'}</td><td>${badge(record.status)}</td><td>${escapeHTML(formatDateTime(record.lastActivity))}</td><td>${openButton(record)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-state">No sample households match these filters. Try another name or status.</td></tr>';
-    text('beneficiary-count', `${matches.length} of ${records.length} households`);
+    if ($('beneficiaries-table')) $('beneficiaries-table').innerHTML = matches.length ? matches.map((record) => `<tr><td>${tableName(record)}</td><td>${escapeHTML(record.barangay)}<small>${escapeHTML(record.city)}</small></td><td>${record.householdSize} ${record.householdSize === 1 ? 'person' : 'people'}</td><td>${badge(record.status)}</td><td>${escapeHTML(formatDateTime(record.lastActivity))}</td><td>${openButton(record)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-state">No beneficiaries match these filters. Try another name or status.</td></tr>';
+    text('beneficiary-count', `${matches.length} of ${records.length} beneficiaries`);
   }
   function renderClaims() {
+    if (!registryAvailable()) {
+      if ($('claims-table')) $('claims-table').innerHTML = '<tr><td colspan="7" class="empty-state">Registry unavailable. Claim history cannot be retrieved until the connection is restored.</td></tr>';
+      text('claims-count', 'Registry unavailable');
+      return;
+    }
     const query = normalize($('claims-search')?.value);
     const matches = [...claims].filter((claim) => !query || normalize(`${claim.receipt} ${claim.beneficiary} ${claim.recordId} ${claim.batchLabel} ${claim.personnelName} ${claim.personnelId}`).includes(query)).sort((a, b) => new Date(b.releasedAt) - new Date(a.releasedAt));
-    if ($('claims-table')) $('claims-table').innerHTML = matches.length ? matches.map((claim) => `<tr><td><strong class="record-id">${escapeHTML(claim.receipt)}</strong></td><td><strong>${escapeHTML(claim.beneficiary)}</strong><small>${escapeHTML(claim.recordId)} · sample record</small></td><td>${escapeHTML(claim.package)}<small>Quantity: ${claim.quantity}</small></td><td>${escapeHTML(formatDate(claim.releasedAt))}<small>${escapeHTML(formatTime(claim.releasedAt))} PHT</small></td><td>${escapeHTML(claim.personnelName)}<small>${escapeHTML(claim.personnelId)}</small></td><td>${escapeHTML(claim.batchLabel)}<small>${claim.batchId === BATCH_ID ? 'Current batch' : 'Previous batch'}</small></td><td><span class="badge" data-tone="success">Recorded</span></td></tr>`).join('') : '<tr><td colspan="7" class="empty-state">No demo claims match your search.</td></tr>';
+    if ($('claims-table')) $('claims-table').innerHTML = matches.length ? matches.map((claim) => `<tr><td><strong class="record-id">${escapeHTML(claim.receipt || 'Reference unavailable')}</strong><button class="table-action" type="button" data-saved-receipt="${escapeHTML(claim.receipt)}">Print receipt</button></td><td><strong>${escapeHTML(claim.beneficiary)}</strong><small>${escapeHTML(claim.recordId)} · registered record</small></td><td>${escapeHTML(goodsText(claim.goods))}${claim.varianceReason ? `<small>Variance: ${escapeHTML(claim.varianceReason)} · Staff review flagged</small>` : ''}</td><td>${escapeHTML(formatDate(claim.releasedAt))}<small>${escapeHTML(formatTime(claim.releasedAt))} PHT</small></td><td>${escapeHTML(claim.personnelName || 'Personnel unavailable')}<small>${escapeHTML(claim.personnelId)}</small></td><td>${escapeHTML(claim.batchLabel || claim.batchId || 'Batch unavailable')}<small>${claim.batchId === BATCH_ID ? 'Current batch' : claim.batchId ? 'Previous batch' : 'Unknown batch'}</small></td><td><span class="badge" data-tone="${incompleteClaim(claim) ? 'warning' : 'success'}">${incompleteClaim(claim) ? 'Incomplete · review' : 'Recorded'}</span></td></tr>`).join('') : '<tr><td colspan="7" class="empty-state">No claims match your search.</td></tr>';
     text('claims-count', `${matches.length} ${matches.length === 1 ? 'claim' : 'claims'}${query ? ` of ${claims.length}` : ' recorded'}`);
   }
-  function renderInventory() {
-    const available = availablePackages();
-    text('inventory-available', available);
-    text('inventory-released', ALLOCATED - available);
-    text('inventory-total', ALLOCATED);
-    setProgress('inventory-progress', available / ALLOCATED * 100);
-    text('inventory-remaining', `${available} of ${ALLOCATED} packages available`);
-  }
+
   function renderAll() {
+    populateCaptureScenarios();
     synchronizeStatuses();
     renderDashboard();
     renderDirectory();
     renderClaims();
-    renderInventory();
+    renderPending();
     renderHousehold();
     renderWorkflow();
+    renderAudit();
   }
   function openDialog(id) {
     const dialog = $(id);
@@ -504,12 +679,15 @@
     if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
   }
   function closeDialog(dialog) { if (!dialog) return; if (typeof dialog.close === 'function') dialog.close(); else dialog.removeAttribute('open'); }
-  function openRecord(id) {
-    const record = records.find((item) => item.id === id);
-    if (!record) return;
+  async function openRecord(id) {
+    if (!requireRegistry()) return showToast('Registry unavailable. Restore it before viewing a profile or history.');
+    let record;
+    try { const fresh = await api(`/api/beneficiaries/${encodeURIComponent(id)}`); record = fresh.record; claims.splice(0, claims.length, ...claims.filter(c => c.recordId !== id), ...fresh.claims); } catch (error) { showToast(error.message); return; }
     text('record-dialog-title', nameOf(record));
-    const history = claims.filter((claim) => claim.recordId === id || claim.householdKey === householdKey(record));
-    if ($('record-dialog-content')) $('record-dialog-content').innerHTML = `<div class="record-dialog-summary">${badge(record.status)}<span class="record-id">${escapeHTML(record.id)} · fictional sample</span></div><dl class="record-facts"><div><dt>Location</dt><dd>${escapeHTML(record.barangay)}, ${escapeHTML(record.city)}, ${escapeHTML(record.province)}, ${escapeHTML(record.region)}</dd></div><div><dt>Household</dt><dd>${record.householdSize} ${record.householdSize === 1 ? 'person' : 'people'}</dd></div><div><dt>Last activity</dt><dd>${escapeHTML(formatDateTime(record.lastActivity))}</dd></div></dl><h3>Recorded claim history</h3>${history.length ? `<ul class="record-claims">${history.map((claim) => `<li><strong>${escapeHTML(claim.receipt)} · ${escapeHTML(claim.batchLabel)}</strong><small>${escapeHTML(claim.package)} · ${escapeHTML(formatDateTime(claim.releasedAt))}</small><small>${escapeHTML(claim.personnelName)} · ${escapeHTML(claim.personnelId)}</small></li>`).join('')}</ul>` : '<p class="empty-state compact">No package releases recorded for this household.</p>'}`;
+    const history = claims.filter((claim) => claim.recordId === id);
+    logAudit('Profile viewed from beneficiary directory', {}, id);
+    logAudit('Individual claim history accessed', { references: history.map((claim) => claim.receipt || 'Missing reference'), incomplete: history.some(incompleteClaim) }, id);
+    if ($('record-dialog-content')) $('record-dialog-content').innerHTML = `<div class="record-dialog-summary">${badge(record.status)}<span class="record-id">${escapeHTML(record.id)} · registered profile</span></div><dl class="record-facts"><div><dt>Location</dt><dd>${escapeHTML(record.barangay)}, ${escapeHTML(record.city)}, ${escapeHTML(record.province)}, ${escapeHTML(record.region)}</dd></div><div><dt>Household</dt><dd>${record.householdSize} ${record.householdSize === 1 ? 'person' : 'people'}</dd></div><div><dt>Last activity</dt><dd>${escapeHTML(formatDateTime(record.lastActivity))}</dd></div></dl><h3>Individual claim history</h3>${history.length ? `<ul class="record-claims">${history.map(claimHistoryRow).join('')}</ul>` : '<p class="empty-state compact">No Previous Claims for this beneficiary.</p>'}`;
     if ($('record-continue')) {
       $('record-continue').dataset.recordId = id;
       $('record-continue').textContent = record.status === 'released' ? 'Verify and review record' : 'Continue to verification';
@@ -517,43 +695,60 @@
     openDialog('record-dialog');
   }
   function exportClaims() {
+    if (!requireRegistry()) return showToast('Registry unavailable. Restore it before exporting claim history.');
     const safeCSV = (value) => { let cell = String(value ?? ''); if (/^[\s]*[=+\-@\t\r]/.test(cell)) cell = `'${cell}`; return `"${cell.replace(/"/g, '""')}"`; };
-    const rows = [['Demo receipt', 'Sample record ID', 'Activity', 'Batch ID', 'Batch', 'Package', 'Quantity', 'Released at (ISO)', 'Personnel in charge', 'Personnel ID', 'Status'], ...claims.map((claim) => [claim.receipt, claim.recordId, claim.activity, claim.batchId, claim.batchLabel, claim.package, claim.quantity, claim.releasedAt, claim.personnelName, claim.personnelId, claim.status])];
+    const rows = [['Receipt', 'Beneficiary record ID', 'Activity', 'Batch ID', 'Batch', 'Package', 'Quantity', ...Object.values(GOODS), 'Variance reason', 'Variance recorded', 'Eligibility confirmed at (ISO)', 'Released at (ISO)', 'Personnel in charge', 'Personnel ID', 'Status'], ...claims.map((claim) => [claim.receipt, claim.recordId, claim.activity, claim.batchId, claim.batchLabel, claim.package, claim.quantity, ...Object.keys(GOODS).map((key) => claim.goods?.[key]), claim.varianceReason, claim.varianceReason ? 'Yes' : 'No', claim.eligibilityConfirmedAt, claim.releasedAt, claim.personnelName, claim.personnelId, claim.status])];
     const blob = new Blob(['\uFEFF' + rows.map((row) => row.map(safeCSV).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `dswd-demo-claims-${TODAY}.csv`;
+    link.download = `dswd-claims-${TODAY}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast(`Exported ${claims.length} demo claims. The CSV excludes beneficiary names and addresses.`);
+    showToast(`Exported ${claims.length} claims. The CSV excludes beneficiary names and addresses.`);
+    logAudit('Claim history exported', { count: claims.length }, null);
   }
   const actions = {
-    'new-registration': () => beginIntake('new'),
+    'start-distribution': () => beginIntake('counter'),
+    'new-registration': newRegistration,
+    'restart-verification': () => beginIntake('counter'),
+    'verify-registration': () => { if (intake.detailsSaved && intake.recordId) prepareReturningRecord(intake.recordId); },
     'returning-beneficiary': () => beginIntake('returning'),
     'review-existing': (button) => prepareReturningRecord(button.dataset.recordId),
+    'link-existing-profile': async (button) => {
+      try {
+        const fresh = await api(`/api/beneficiaries/${encodeURIComponent(button.dataset.recordId)}`);
+        intake = {...createIntake(), path:'registration', recordId:fresh.record.id, profileVersion:fresh.record.version, fields:Object.fromEntries(Object.keys(FIELD_IDS).map(key=>[key,fresh.record[key]])), members:cloneMembers(fresh.record.members), detailsSaved:true};
+        if(fresh.record.biometricEnrollment) intake.enrollment={...fresh.record.biometricEnrollment};
+        registrationState = intake; writeFields(); showError('form-error', ''); hidden('duplicate-review', true); renderWorkflow();
+        showToast('Existing registration opened. Verify this beneficiary before distribution.');
+      } catch (error) { showError('form-error', error.message); }
+    },
+
+    'retry-capture': () => { if (intake.completed) return; restartCapture({ auditReason: 'Personnel retried simulated capture', preserveFields: true }); showToast('Capture restarted. Both modalities are required again.'); },
     'start-registration': () => {
-      if (intake.completed) resetIntake(); else if (hasDraft()) showToast('Your current intake has been resumed.');
-      showView('registration');
-      focusHeading(intake.path ? document.querySelector(`[data-step-panel="${currentStep}"]`) : $('registration-entry'));
+      showView('verification');
+      if (intakeContext !== 'verification') return;
+      if (intake.completed) beginIntake('counter');
+      focusHeading($('verification'));
     },
-    'save-draft': () => {
-      if (intake.completed) return showToast('This release is complete. Start the next intake for a new beneficiary.');
-      if (!intake.path) return;
-      intake.fields = readFields(); intake.draftSaved = true; updateDraftStatus(); showToast('Draft saved in this tab. Return to intake to resume.');
+
+    'save-draft': async () => {
+      if (!intake.path || intake.completed) return;
+      intake.fields = readFields();
+      try { await api('/api/draft', { method: 'PUT', body: { fields: intake.fields, members: intake.members, enrollment:intake.enrollment, recordId: intake.recordId, version: intake.profileVersion, registrationKey: intake.registrationKey } }); intake.draftSaved = true; updateDraftStatus(); showToast('Draft saved.'); } catch (error) { showToast(error.message); }
     },
-    'use-demo': () => {
-      if (intake.completed) return showToast('Start the next intake to enter a new beneficiary.');
-      if (intake.path !== 'new' || intake.recordId) return showToast('Sample autofill is available for an unsaved new registration.');
-      showToast('Fictional sample details loaded. Review and save the registration before verification.');
-      intake.fields = { firstName: 'Elena', lastName: 'Dela Cruz', birthDate: '1991-06-14', sex: 'Female', civilStatus: 'Married', income: '7500', incomePeriod: 'monthly', region: 'National Capital Region', province: 'Metro Manila', address: '24 P. Sanchez Street', barangay: 'Barangay 587', city: 'Manila', householdSize: 3, contact: 'elena@example.invalid', validId: '' };
-      intake.members = [{ name: 'Miguel Dela Cruz', relationship: 'Spouse', age: 37 }, { name: 'Sofia Dela Cruz', relationship: 'Child', age: 9 }];
-      writeFields(); profileChanged();
+
+    'add-member': () => { if (intake.completed || intake.reservation) return; $('member-form')?.reset(); populateFamilyOptions(); openDialog('member-dialog'); },
+    'cancel-intake': () => {
+      if (hasDraft()) logAudit('Intake cleared without claim', {reason:'Staff cleared the current page'});
+      if (intakeContext === 'registration') { resetIntake('registration'); registrationState = intake; }
+      else { resetIntake(); verificationState = intake; }
+      showToast('Current page cleared. Saved registrations and pending handovers remain available.');
     },
-    'add-member': () => { if (intake.completed) return; if (intake.members.length >= 19) return showToast('A household can contain up to 20 people in this demo.'); $('member-form')?.reset(); openDialog('member-dialog'); },
-    'cancel-intake': () => { entrySelected = false; resetIntake(); showView('registration'); showToast('Intake cleared. Choose New Registration or the verification counter.'); },
+
     'export-claims': exportClaims,
     'print-receipt': () => { if (!intake.receipt) return showToast('Record a release before printing a receipt.'); renderPrintableReceipt(intake.receipt); window.print(); },
     'show-help': () => openDialog('help-dialog'),
@@ -574,10 +769,7 @@
     else if (button.hasAttribute('data-capture')) {
       if (!['face', 'fingerprint', 'manual'].includes(button.dataset.capture)) return;
       if (intake.completed) return;
-      if (intake.captureMode !== button.dataset.capture) {
-        intake.verified = false; intake.verifiedRecordId = null; intake.captureComplete = false; intake.method = ''; intake.manualReason = '';
-        invalidateAssessment(); currentStep = 'verify';
-      }
+      if (button.dataset.capture === 'manual' && !intake.captureFailed) return showToast('Manual verification requires a recorded biometric capture failure first.');
       intake.captureMode = button.dataset.capture; renderCaptureMode(); renderWorkflow();
     } else if (button.hasAttribute('data-select-record')) selectRecord(button.dataset.selectRecord);
     else if (button.hasAttribute('data-open-record')) openRecord(button.dataset.openRecord);
@@ -614,66 +806,99 @@
   listen('capture-consent', 'change', () => {
     intake.consent = $('capture-consent').checked;
     if (!intake.consent) {
-      intake.verified = false; intake.verifiedRecordId = null; intake.captureComplete = false; invalidateAssessment(); currentStep = 'verify'; renderWorkflow();
+      restartCapture({ auditReason: 'Privacy acknowledgment withdrawn', preserveFields: true });
     } else showError('verification-error', '');
   });
   listen('identity-search-form', 'submit', (event) => {
     event.preventDefault();
-    if (!requireConsent()) return;
+    if (!requireConsent() || !requireRegistry()) return;
     const query = normalize($('identity-query')?.value);
-    if (!query) { showError('verification-error', 'Enter a sample beneficiary name or ID to search.'); $('identity-query')?.focus(); return; }
+    if (!query) { showError('verification-error', 'Enter a beneficiary name or ID to search.'); $('identity-query')?.focus(); return; }
     renderIdentityResults(records.filter((record) => normalize(nameOf(record)).includes(query) || normalize(record.id).includes(query) || record.members.some((member) => normalize(member.name).includes(query))));
+    logAudit('Sample scenario search', { query }, null);
   });
   listen('capture-button', 'click', () => {
-    if (!requireConsent()) return;
-    const record = registeredRecord();
-    if (!record || !intake.detailsSaved || !profileComplete(record, record.members)) {
-      showError('verification-error', 'Select a saved registered profile first. New beneficiaries must complete registration before counter verification.');
+    if (!requireConsent() || !requireActiveBatch() || intake.completed || intake.captureFailed) return;
+    const mode = intake.captureMode;
+    if (!['face', 'fingerprint'].includes(mode) || intake.capture[mode].status === 'captured') return;
+    const quality = $('capture-quality')?.value || 'clear';
+    const capture = intake.capture[mode];
+    capture.attempts += 1;
+    if (quality !== 'clear') {
+      capture.status = quality === 'device-error' || capture.attempts >= 3 ? 'failed' : 'unclear';
+      intake.captureFailed = capture.status === 'failed';
+      logAudit(intake.captureFailed ? 'Simulated capture failed' : 'Simulated capture quality rejected', { modality: mode, quality, attempt: capture.attempts, manualFallbackAvailable: intake.captureFailed }, null);
+      showError('verification-error', quality === 'device-error' ? 'Device unavailable. Retry capture or use valid-ID verification for an existing beneficiary.' : intake.captureFailed ? 'Capture failed after three attempts. Retry both captures or use valid-ID verification for an existing beneficiary.' : `Unclear ${mode} capture. ${3 - capture.attempts} attempt${3 - capture.attempts === 1 ? '' : 's'} remaining.`);
+      renderCaptureMode(); renderWorkflow();
       return;
     }
-    const mode = intake.captureMode;
-    intake.verified = true;
-    intake.verifiedRecordId = record.id;
-    intake.method = mode === 'fingerprint' ? 'Demo fingerprint verification' : 'Demo face verification';
-    intake.captureComplete = true; intake.pendingRecordId = null;
-    record.verified = true;
-    invalidateAssessment(); renderCaptureMode(); renderWorkflow();
-    text('capture-result-status', `Demo verification completed for registered profile ${record.id}. Profile and claim history loaded; no real biometric matching is performed.`);
-    showToast('Demo identity verification complete. Continue to the current-batch claim check.');
-    $('continue-details')?.focus();
+    capture.status = 'captured';
+    capture.capturedAt = new Date().toISOString();
+    logAudit('Simulated capture accepted', { modality: mode, attempt: capture.attempts, simulated: true, noBiometricData: true }, null);
+    if (intake.capture.face.status === 'captured' && intake.capture.fingerprint.status === 'captured') {
+      intake.captureComplete = true;
+      intake.template = { simulated: true, face: true, fingerprint: true, reference: `DEMO-T-${Date.now()}-${auditSequence}`, capturedAt: new Date().toISOString() };
+      intake.pendingMatch = true;
+      resolveCapturedMatch();
+    } else {
+      intake.captureMode = mode === 'face' ? 'fingerprint' : 'face';
+      showToast('Capture the other identity check to continue.');
+    }
+    renderCaptureMode(); renderWorkflow();
   });
   listen('continue-details', 'click', () => {
-    if (!registeredRecord() || !intake.detailsSaved || !intake.verified || intake.verifiedRecordId !== intake.recordId) return showToast('Complete registration and verify the selected beneficiary first.');
-    intake.assessment = assess(intake.fields, intake.recordId, intake.members);
-    renderAll(); showStep('eligibility');
+    performAssessment();
   });
   if ($('manual-form')) $('manual-form').noValidate = true;
-  listen('manual-form', 'submit', (event) => {
+  listen('manual-form', 'submit', async (event) => {
     event.preventDefault();
-    if (!requireConsent()) return;
+    if (!requireConsent() || !requireRegistry() || !requireActiveBatch()) return;
+    if (!intake.captureFailed) { showError('verification-error', 'Manual verification is available only after a recorded capture failure.'); return; }
     const reference = $('manual-reference')?.value.trim() || '';
     const reason = $('manual-reason')?.value.trim() || '';
-    if (!reference || !reason) { showError('verification-error', 'Provide a supporting reference and a reason for manual verification.'); (!reference ? $('manual-reference') : $('manual-reason'))?.focus(); return; }
-    const record = registeredRecord();
-    if (!record) { showError('verification-error', 'Select an existing registered beneficiary before recording a supporting document. New beneficiaries must complete registration first.'); return; }
-    if (!intake.detailsSaved || !profileComplete(record, record.members)) { showError('verification-error', 'Complete and save this registered household profile before verification.'); return; }
-    intake.verified = true; intake.verifiedRecordId = record.id; record.verified = true; intake.method = `Manual verification · ${reference}`; intake.manualReason = reason; intake.captureComplete = false;
-    invalidateAssessment(); renderWorkflow(); showToast('Manual counter verification recorded. Continue to the current-batch claim check.');
+    if (!reference || !reason) { showError('verification-error', 'Provide a valid-ID reference and verification reason.'); return; }
+    const selectedId = $('capture-scenario')?.value || intake.pendingRecordId;
+    const record = records.find((item) => item.id === selectedId && item.registered);
+    if (!record) { showError('verification-error', 'Select a registered beneficiary for valid-ID verification.'); return; }
+    try { const verification = await api('/api/verification', { method: 'POST', body: { method: 'manual', recordId: record.id, consent: intake.consent, reference, reason } }); intake.verificationId = verification.id; } catch (error) { showError('verification-error', error.message); return; }
+    intake.manualApproval = { reference, reason, verifiedBy: currentUser.id, verifiedAt: new Date().toISOString() };
+    intake.manualReason = reason;
+    loadVerifiedRecord(record, `Manual verification · ${reference}`);
+    logAudit('Manual verification approved after capture failure', intake.manualApproval, record.id);
+    text('capture-result-status', `Manual verification recorded for ${record.id}. Review the existing profile and individual claim history before confirmation.`);
+    renderWorkflow(); showToast('Valid-ID verification saved in the audit trail. Review and confirm the existing profile.');
   });
   if ($('birth-date')) $('birth-date').max = TODAY;
+  listen('enrollment-consent','input',()=>{
+    if(intakeContext!=='registration' || mutationBusy) return;
+    intake.enrollment.consent=$('enrollment-consent').checked;
+    if(!intake.enrollment.consent) { intake.enrollment.faceCapturedAt=null; intake.enrollment.fingerprintCapturedAt=null; }
+    profileChanged(); renderEnrollment();
+  });
+  for(const mode of ['face','fingerprint']) listen(`enroll-${mode}`,'click',()=>{
+    if(intakeContext!=='registration' || mutationBusy) return;
+    if(!intake.enrollment.consent) { showError('enrollment-error','Acknowledge the enrollment privacy notice before capture.'); $('enrollment-consent').focus(); return; }
+    intake.enrollment[`${mode}CapturedAt`]=new Date().toISOString();
+    profileChanged(); showError('enrollment-error',''); renderEnrollment();
+    showToast(`${mode === 'face' ? 'Face' : 'Fingerprint'} captured.`);
+  });
   if ($('beneficiary-form')) $('beneficiary-form').noValidate = true;
   const handleDetailsEdit = () => { if (intake.completed) return; intake.fields = readFields(); profileChanged(); };
   listen('beneficiary-form', 'input', handleDetailsEdit);
   listen('beneficiary-form', 'change', handleDetailsEdit);
-  listen('beneficiary-form', 'submit', (event) => {
+  listen('beneficiary-form', 'submit', async (event) => {
     event.preventDefault();
     if (intake.completed) return;
     if (!intake.path) return;
     const fields = readFields();
     intake.fields = fields;
+    if (intakeContext !== 'registration' || !requireRegistry('form-error')) return;
     const required = [['firstName', 'First and middle names'], ['lastName', 'Last name'], ['birthDate', 'Date of birth'], ['sex', 'Sex / gender'], ['civilStatus', 'Civil status'], ['region', 'Region'], ['province', 'Province'], ['address', 'Street / sitio'], ['barangay', 'Barangay'], ['city', 'City / municipality'], ['income', 'Household income'], ['incomePeriod', 'Income period'], ['contact', 'Contact information']];
     const missing = required.find(([key]) => !fields[key]);
     if (missing) { showError('form-error', `${missing[1]} is required. Complete the household profile to continue.`); $(FIELD_IDS[missing[0]])?.focus(); return; }
+    if(!intake.enrollment.consent || !intake.enrollment.faceCapturedAt || !intake.enrollment.fingerprintCapturedAt) {
+      showError('enrollment-error','Acknowledge the privacy notice and capture both face and fingerprint before saving registration.'); $('enrollment-consent').focus(); return;
+    }
     if (!validBirthDate(fields.birthDate)) { showError('form-error', 'Enter a valid birth date on or before today.'); $('birth-date')?.focus(); return; }
     if (!Number.isFinite(Number(fields.income)) || Number(fields.income) < 0 || !['monthly', 'annual'].includes(fields.incomePeriod)) { showError('form-error', 'Enter household income of zero or more and select monthly or annual.'); $('income')?.focus(); return; }
     if (!Number.isInteger(fields.householdSize) || fields.householdSize < 1 || fields.householdSize > 20 || fields.householdSize < intake.members.length + 1) {
@@ -684,25 +909,39 @@
       showError('form-error', 'The primary beneficiary and linked members must be different people. Review duplicate names in this household.'); return;
     }
     const personDuplicate = records.find((record) => record.id !== intake.recordId && normalize(nameOf(record)) === normalize(nameOf(fields)) && record.birthDate === fields.birthDate);
-    const householdDuplicate = records.find((record) => record.id !== intake.recordId && householdKey(record) === householdKey(fields));
-    const linkedMemberDuplicate = records.find((record) => record.id !== intake.recordId && record.members.some((member) => normalize(member.name) === normalize(nameOf(fields))));
     const validIdDuplicate = fields.validId ? records.find((record) => record.id !== intake.recordId && record.validId && normalize(record.validId) === normalize(fields.validId)) : null;
-    if (linkedMemberDuplicate) {
-      showDuplicateError(linkedMemberDuplicate, `This name matches a linked member of registered household ${linkedMemberDuplicate.id}. Review the existing household before creating another registration.`); return;
-    }
-    if (personDuplicate || householdDuplicate || validIdDuplicate) {
-      const duplicate = personDuplicate || householdDuplicate || validIdDuplicate;
-      showDuplicateError(duplicate, `${personDuplicate ? 'This name and birth date match' : householdDuplicate ? 'This address matches' : 'This ID matches'} registered household ${duplicate.id}. Review the existing profile to avoid a duplicate.`); return;
+    const duplicate = personDuplicate || validIdDuplicate;
+    if (duplicate) {
+      if (intake.duplicateReview !== duplicate.id) {
+        if ($('duplicate-distinct')) $('duplicate-distinct').checked = false;
+        assignField('duplicate-note', '');
+      }
+      const distinct = $('duplicate-distinct')?.checked;
+      const note = $('duplicate-note')?.value.trim() || '';
+      if (!distinct || !note || intake.duplicateReview !== duplicate.id) {
+        showDuplicateError(duplicate, `${personDuplicate ? 'Name and date of birth match' : 'Valid ID matches'} profile ${duplicate.id}. Link to the existing individual, or confirm a different person and provide a staff review note.`); return;
+      }
+      logAudit('Possible duplicate confirmed as different person', { possibleRecordId: duplicate.id, note, reviewNote: true }, intake.recordId);
     }
     showError('form-error', '');
-    if (!intake.recordId) intake.recordId = `RL-${String(++recordSequence).padStart(4, '0')}`;
-    intake.detailsSaved = true; intake.draftSaved = false; intake.assessment = null; intake.verified = false; intake.verifiedRecordId = null; intake.captureComplete = false; intake.method = '';
-    const saved = { ...fields, id: intake.recordId, members: cloneMembers(intake.members), registered: true, verified: false, status: 'review', lastActivity: new Date().toISOString() };
-    const existing = records.findIndex((record) => record.id === intake.recordId);
-    if (existing === -1) records.push(saved); else records[existing] = { ...records[existing], ...saved };
-    renderAll(); showStep('verify');
-    showToast(`Registration saved as ${intake.recordId}. Continue with verification at the distribution counter.`);
+    hidden('duplicate-review', true);
+    const isNew = !intake.recordId;
+    const submit = $('beneficiary-form').querySelector('[type="submit"]');
+    submit.disabled = true; mutationBusy = true;
+    try {
+      const saved = await api(intake.recordId ? `/api/beneficiaries/${encodeURIComponent(intake.recordId)}` : '/api/beneficiaries', { method: intake.recordId ? 'PUT' : 'POST', body: { profile: fields, enrollment:intake.enrollment, members: intake.members, version: intake.profileVersion, registrationKey: intake.registrationKey, duplicateId: intake.duplicateReview, duplicateNote: $('duplicate-note')?.value.trim() || '' } });
+      intake.recordId = saved.id; intake.profileVersion = saved.version;
+      intake.detailsSaved = true; intake.draftSaved = false; intake.assessment = null; intake.readyAt = null; intake.profileConfirmed = false;
+      await refreshWorkspace();
+      if (verificationState.recordId === saved.id && !verificationState.reservation) verificationState = createIntake();
+      renderWorkflow(); showToast(isNew ? 'Registration saved.' : 'Registration updated. Verify again before distribution.');
+    } catch (error) {
+      intake.detailsSaved = false;
+      if (error.duplicateId) { const candidate = records.find(p => p.id === error.duplicateId); if (candidate) showDuplicateError(candidate, error.message); else showError('form-error', error.message); }
+      else showError('form-error', error.message);
+    } finally { submit.disabled = false; mutationBusy = false; renderEnrollment(); }
   });
+
   listen('member-form', 'submit', (event) => {
     event.preventDefault();
     if (intake.completed) return;
@@ -717,45 +956,113 @@
     if (normalize(name) === normalize(nameOf(intake.fields)) || intake.members.some((member) => normalize(member.name) === normalize(name))) {
       showToast('This person is already listed in the household.'); $('member-name')?.focus(); return;
     }
-    const otherHousehold = records.find((record) => record.id !== intake.recordId && (normalize(nameOf(record)) === normalize(name) || record.members.some((member) => normalize(member.name) === normalize(name))));
-    if (otherHousehold) {
-      showToast(`Possible match in household ${otherHousehold.id}. Ask the station lead to review before linking this person.`); $('member-name')?.focus(); return;
-    }
-    intake.members.push({ name, relationship, age });
+    const relatedBeneficiaryId = $('member-existing')?.value || null;
+    if (relatedBeneficiaryId && !$('member-confirm-link')?.checked) return showToast('Confirm that the selected registered profile is the correct family member.');
+    if (relatedBeneficiaryId && intake.members.some(m => m.relatedBeneficiaryId === relatedBeneficiaryId)) return showToast('This person is already linked.');
+    intake.members.push({ name, relationship, age, relatedBeneficiaryId });
+
     intake.fields.householdSize = Math.max(intake.members.length + 1, Number(intake.fields.householdSize) || 1);
     assignField('household-size', intake.fields.householdSize);
     closeDialog($('member-dialog')); profileChanged();
     showToast('Household member added. Review the declared household size.');
   });
-  listen('release-button', 'click', () => {
-    if (!intake.assessment?.eligible || intake.completed) return;
-    intake.assessment = assess(intake.fields, intake.recordId, intake.members);
-    if (!intake.assessment.eligible) { renderEligibility(); showToast('The release is blocked. Review the updated eligibility checks.'); return; }
-    showStep('release');
+  listen('release-button', 'click', async () => {
+    if (!intake.assessment?.eligible || intake.completed || mutationBusy) return;
+    mutationBusy = true;
+    try {
+      const ready = await api(`/api/assessments/${intake.assessment.id}/confirm`, { method: 'POST', body: {} });
+      intake.readyAt = ready.readyAt; showStep('release');
+    } catch (error) { showToast(error.message); }
+    finally { mutationBusy = false; renderRelease(); }
   });
+
   listen('receipt-ack', 'change', renderRelease);
   listen('personnel-name', 'input', renderRelease);
   listen('personnel-id', 'input', renderRelease);
-  listen('confirm-release', 'click', () => {
+  const actualGoodsChanged = () => { if ($('receipt-ack')) $('receipt-ack').checked = false; renderRelease(); };
+  Object.keys(ENTITLEMENT).forEach((key) => { listen(`actual-${key}`, 'input', actualGoodsChanged); listen(`actual-${key}`, 'change', actualGoodsChanged); });
+  listen('release-variance-reason', 'input', renderRelease);
+  listen('confirm-release', 'click', async () => {
+    if (!intake.reservation || intake.completed || mutationBusy || !$('receipt-ack')?.checked) return;
+    mutationBusy = true; renderRelease();
+    try {
+      showError('release-error', '');
+      const receipt = await api(`/api/releases/${intake.reservation.id}/complete`, { method: 'POST', body: { acknowledged: true } });
+      intake.completed = true; intake.receipt = receipt;
+      await refreshWorkspace(); currentStep = 'release'; renderWorkflow();
+      showToast('Release saved. The receipt is available in claim history.');
+    } catch (error) {
+      showError('release-error', `${error.message} Handover ${intake.reservation.id} remains pending. Keep this reference and retry confirmation; do not hand over another package.`);
+    } finally { mutationBusy = false; renderRelease(); }
+  });
+
+  listen('profile-confirmed', 'change', () => {
+    const confirmed = Boolean($('profile-confirmed')?.checked);
+    if (!intake.verified || !registeredRecord() || !registryAvailable()) { if ($('profile-confirmed')) $('profile-confirmed').checked = false; return; }
+    intake.profileConfirmed = confirmed;
+    invalidateAssessment();
+    if (confirmed) logAudit('Personnel confirmed beneficiary profile', { confirmed: true });
+    renderWorkflow();
+  });
+  listen('reject-match', 'click', () => {
+    if (!intake.verified || !registeredRecord() || intake.completed) return;
+    logAudit('Personnel rejected simulated match', { reason: 'Profile does not belong to the person at the desk', reviewNote: true });
+    restartCapture({ auditReason: 'Match rejected by personnel' });
+    showToast('Match rejected and logged for review. Capture both modalities again.');
+  });
+  listen('capture-scenario', 'change', () => {
     if (intake.completed) return;
-    const registered = registeredRecord();
-    if (!registered || !intake.verified || intake.verifiedRecordId !== registered.id || !intake.detailsSaved || !intake.assessment?.eligible || !$('receipt-ack')?.checked) {
-      showError('release-error', 'Complete eligibility and confirm the beneficiary acknowledgment before recording release.'); return;
+    if (intake.captureFailed && !intake.verified) {
+      intake.pendingRecordId = $('capture-scenario').value;
+      return;
     }
-    const personnelName = $('personnel-name')?.value.trim() || '';
-    const personnelId = $('personnel-id')?.value.trim() || '';
-    if (!personnelName || !personnelId) { showError('release-error', 'Record the name and staff ID of the DSWD personnel releasing these goods.'); (!personnelName ? $('personnel-name') : $('personnel-id'))?.focus(); return; }
-    const latest = assess(intake.fields, intake.recordId, intake.members);
-    if (!latest.eligible) { intake.assessment = latest; showError('release-error', 'This release is blocked. Review the eligibility checks.'); showStep('eligibility'); return; }
-    // Set the guard synchronously before adding the transaction.
-    intake.completed = true;
-    const receipt = { receipt: `DEMO-R-${String(++receiptSequence).padStart(4, '0')}`, recordId: registered.id, beneficiary: nameOf(registered), householdKey: householdKey(registered), householdSize: registered.householdSize, package: PACKAGE, quantity: 1, activity: ACTIVITY, batchId: BATCH_ID, batchLabel: BATCH_LABEL, releasedAt: new Date().toISOString(), method: intake.method, personnelName, personnelId, status: 'Released' };
-    claims.push(receipt); intake.receipt = receipt;
-    const record = records.find((item) => item.id === intake.recordId);
-    if (record) { record.status = 'released'; record.lastActivity = receipt.releasedAt; }
-    showError('release-error', ''); renderAll(); currentStep = 'release'; renderWorkflow(); focusHeading($('release-success'));
-    $('release-success')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-    showToast('Demo release recorded. Claim history and available stock have been updated.');
+    if (intake.verified || intake.capture.face.attempts || intake.capture.fingerprint.attempts) restartCapture({ auditReason: 'Demo match scenario changed', preserveFields: true });
+    intake.pendingRecordId = $('capture-scenario')?.value === 'new' ? null : $('capture-scenario')?.value;
+  });
+  let registryPauseStep = null;
+  listen('registry-unavailable', 'change', () => {
+    logAudit(registryAvailable() ? 'Demo registry restored' : 'Demo registry unavailable · session paused', { available: registryAvailable(), enteredDataRetained: true });
+    if (!registryAvailable()) {
+      registryPauseStep = currentStep;
+      if ($('identity-results')) $('identity-results').innerHTML = '';
+      closeDialog($('record-dialog'));
+      invalidateAssessment();
+      showError(currentStep === 'details' ? 'form-error' : 'verification-error', 'Registry unavailable. Entered data is retained. Restore the registry and retry before saving or releasing.');
+    } else {
+      ['verification-error', 'form-error', 'release-error'].forEach((id) => showError(id, ''));
+      if (intake.pendingMatch) resolveCapturedMatch();
+      else if (registryPauseStep === 'details' && canVisitStep('details')) currentStep = 'details';
+      registryPauseStep = null;
+      if (intake.verified && !intake.assessment && intake.detailsSaved) showToast('Registry restored. Review the profile and retry eligibility.');
+    }
+    renderAll();
+  });
+  listen('batch-status', 'change', () => { batchDirty = true; invalidateAssessment(); });
+  listen('batch-income-limit', 'input', () => { batchDirty = true; invalidateAssessment(); });
+  ['batch-activity','batch-label'].forEach(id => listen(id, 'input', () => { batchDirty = true; invalidateAssessment(); }));
+  listen('save-batch-settings', 'click', async () => {
+    try {
+      await api('/api/batch', { method: 'PUT', body: { activity: $('batch-activity').value.trim(), label: $('batch-label').value.trim(), status: $('batch-status').value, incomeLimit: $('batch-income-limit').value || null, version: batchVersion } });
+      batchDirty = false; await refreshWorkspace(); showToast('Batch settings saved.');
+    } catch (error) { showToast(error.message); if (error.status === 409) { batchDirty = false; await refreshWorkspace().catch(() => {}); } }
+  });
+
+  listen('cancel-release', 'click', () => {
+    if (intake.completed || !intake.assessment?.eligible) return;
+    $('cancel-release-form')?.reset();
+    openDialog('cancel-release-dialog');
+  });
+  if ($('cancel-release-form')) $('cancel-release-form').noValidate = true;
+  listen('cancel-release-form', 'submit', async (event) => {
+    event.preventDefault();
+    if (intake.completed || !intake.assessment?.eligible) return;
+    const reason = $('cancel-release-reason')?.value.trim() || '';
+    if (!reason) { showToast('Record why the beneficiary declined the goods.'); $('cancel-release-reason')?.focus(); return; }
+    try { if (intake.reservation) { await api(`/api/releases/${intake.reservation.id}/cancel`, { method: 'POST', body: { reason, goodsNotHandedOver: $('cancel-not-handed')?.checked === true } }); intake.reservation = null; intake.idempotencyKey = null; await refreshWorkspace(); } else await logAudit('Release cancelled', { reason }); } catch (error) { showError('cancel-error', error.message); return; }
+    closeDialog($('cancel-release-dialog'));
+    if ($('receipt-ack')) $('receipt-ack').checked = false;
+    showStep('eligibility');
+    showToast('Decline recorded. No claim was added; the beneficiary remains eligible.');
   });
   listen('record-continue', 'click', () => {
     const id = $('record-continue').dataset.recordId;
@@ -769,5 +1076,150 @@
   window.addEventListener('hashchange', routeFromHash);
   window.addEventListener('popstate', routeFromHash);
 
+  function populateCaptureScenarios() {
+    if (!$('capture-scenario')) return;
+    const selected = $('capture-scenario').value;
+    $('capture-scenario').replaceChildren(new Option('Not found · new beneficiary', 'new'));
+    records.forEach(record => {
+      const previous = claims.some(c => c.recordId === record.id);
+      $('capture-scenario').add(new Option(`${nameOf(record)} · ${hasBeneficiaryClaim(record) ? 'already claimed' : previous ? 'previous batch only' : 'no previous claims'}`, record.id));
+    });
+    $('capture-scenario').value = records.some(r => r.id === selected) ? selected : 'new';
+  }
+
+  async function api(path, {method = 'GET', body} = {}) {
+    let response;
+    try {
+      response = await fetch(path, {method, credentials: 'same-origin', headers: {'Content-Type': 'application/json', ...(csrfToken ? {'X-CSRF-Token': csrfToken} : {})}, ...(body === undefined ? {} : {body: JSON.stringify(body)}), signal: AbortSignal.timeout(15000)});
+    } catch (error) { databaseOnline = false; hidden('connection-banner', false); throw new Error('Connection unavailable. Your entries are kept. Reconnect and retry.'); }
+    const data = await response.json();
+    databaseOnline = response.status < 500; hidden('connection-banner', databaseOnline);
+    if (!response.ok) {
+      if (response.status === 401 && currentUser) { currentUser = null; document.body.classList.add('auth-pending'); hidden('auth-screen', false); text('auth-description', 'Your session expired. Sign in again.'); }
+      throw Object.assign(new Error(data.error || 'The request could not be saved.'), data, {status: response.status});
+    }
+    return data;
+  }
+  async function refreshWorkspace() {
+    const data = await api('/api/workspace');
+    records.splice(0, records.length, ...data.records);
+    claims.splice(0, claims.length, ...data.claims);
+    audit.splice(0, audit.length, ...data.audit);
+    pendingHandovers = data.pending; savedDraft = data.draft;
+    ACTIVITY = data.batch.activity; BATCH_ID = data.batch.id; BATCH_LABEL = data.batch.label;
+    if (!batchDirty) { batchVersion = data.batch.version; assignField('batch-status', data.batch.status); assignField('batch-income-limit', data.batch.income_limit ?? ''); assignField('batch-activity', data.batch.activity); assignField('batch-label', data.batch.label); }
+    Object.assign(ENTITLEMENT, data.batch.entitlement);
+    hidden('resume-draft-button', !savedDraft);
+    renderAll();
+  }
+  let initialSetup = false;
+  async function initializeSession() {
+    try {
+      const session = await api('/api/session');
+      initialSetup = session.setupRequired;
+      document.querySelectorAll('.setup-only').forEach(element => { element.hidden = !initialSetup; element.querySelector('input').required = initialSetup; });
+      text('auth-heading', initialSetup ? 'Create your first staff account' : 'Staff sign in');
+      text('auth-description', initialSetup ? 'Create a staff account to get started.' : 'Sign in to continue.');
+      text('auth-submit', initialSetup ? 'Create account and sign in' : 'Sign in');
+      $('auth-submit').disabled = false; $('auth-password').minLength = initialSetup ? 12 : 1;
+      if (session.user) await openWorkspace(session);
+    } catch (error) { showError('auth-error', error.message); text('auth-description', 'The workspace is unavailable. Reopen this page after the connection is restored.'); }
+  }
+  async function openWorkspace(session) {
+    currentUser = session.user; csrfToken = session.csrfToken;
+    intakeContext = 'verification'; registrationState = createIntake(); verificationState = createIntake(); intake = verificationState;
+    await refreshWorkspace();
+    text('staff-name', currentUser.fullName); text('staff-number', currentUser.staffNumber);
+    text('staff-avatar', currentUser.fullName.split(/\s+/).slice(0, 2).map(n => n[0]).join(''));
+    assignField('personnel-name', currentUser.fullName); assignField('personnel-id', currentUser.staffNumber);
+    const requested = window.location.hash.slice(1) || window.location.pathname.replace(/^\/|\/$/g, '');
+    resetIntake(); entrySelected = true; showView(Object.hasOwn(VIEWS, requested) ? requested : 'overview');
+    hidden('auth-screen', true); document.body.classList.remove('auth-pending');
+    if (savedDraft) showToast('A saved intake draft is available. Use Resume saved draft to restore its details.');
+  }
+  function renderPending() {
+    if (!$('pending-list')) return;
+    $('pending-list').innerHTML = pendingHandovers.length ? pendingHandovers.map(item => `<article class="pending-row"><div><strong>${escapeHTML(item.beneficiary)}</strong><small>${escapeHTML(item.id)} · ${escapeHTML(formatDateTime(item.preparedAt))}</small><small>${escapeHTML(goodsText(item.goods))}</small><small>Prepared by ${escapeHTML(item.personnelName)}</small></div><button class="button secondary" type="button" data-resume-handover="${escapeHTML(item.id)}">Resume handover</button></article>`).join('') : '<p class="empty-state">No handovers are awaiting confirmation.</p>';
+  }
+  function populateFamilyOptions() {
+    const select = $('member-existing'); if (!select) return;
+    const query = normalize($('member-search')?.value);
+    const selected = select.value;
+    select.replaceChildren(new Option('Not registered · enter details below', ''));
+    records.filter(person => person.id !== intake.recordId && (!query || normalize(`${nameOf(person)} ${person.id}`).includes(query))).forEach(person => select.add(new Option(`${nameOf(person)} · ${person.birthDate} · ${person.barangay} · ${person.id}`, person.id)));
+    select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+    $('member-name').readOnly = Boolean(select.value); $('member-age').readOnly = Boolean(select.value);
+  }
+  actions.logout = async () => {
+    try { await api('/api/logout', {method: 'POST', body: {}}); window.location.reload(); } catch (error) { showToast(error.message); }
+  };
+  actions['new-staff'] = () => { $('staff-form').reset(); showError('staff-error', ''); openDialog('staff-dialog'); };
+  actions['resume-draft'] = () => {
+    if (!savedDraft) return showToast('No saved draft is available.');
+    const draft = {...savedDraft};
+    newRegistration();
+    if (intakeContext !== 'registration') return;
+    intake.fields = draft.fields; intake.members = draft.members || []; intake.recordId = draft.recordId || null;
+    if(draft.enrollment) intake.enrollment={...draft.enrollment};
+    intake.profileVersion = draft.version || null; intake.registrationKey = draft.registrationKey || crypto.randomUUID(); intake.draftSaved = true;
+    writeFields(); renderWorkflow(); showToast('Registration draft restored. Save the profile when ready.');
+  };
+
+  listen('auth-form', 'submit', async event => {
+    event.preventDefault(); $('auth-submit').disabled = true; showError('auth-error', '');
+    const body = {username: $('auth-username').value, password: $('auth-password').value};
+    try {
+      if (initialSetup) { await api('/api/setup', {method: 'POST', body: {...body, fullName: $('auth-name').value, staffNumber: $('auth-staff-number').value}}); initialSetup = false; document.querySelectorAll('.setup-only').forEach(element => {element.hidden = true; element.querySelector('input').required = false;}); text('auth-heading', 'Staff sign in'); text('auth-submit', 'Sign in'); }
+      const session = await api('/api/login', {method: 'POST', body});
+      await openWorkspace(session); $('auth-form').reset();
+    } catch (error) { showError('auth-error', error.message); }
+    finally { $('auth-submit').disabled = false; }
+  });
+  listen('staff-form', 'submit', async event => {
+    event.preventDefault(); const button = $('staff-form').querySelector('[type="submit"]'); button.disabled = true;
+    try { await api('/api/staff', {method: 'POST', body: {fullName: $('new-staff-name').value, staffNumber: $('new-staff-number').value, username: $('new-staff-username').value, password: $('new-staff-password').value}}); closeDialog($('staff-dialog')); $('staff-form').reset(); await refreshWorkspace(); showToast('Staff account created.'); }
+    catch (error) { showError('staff-error', error.message); } finally { button.disabled = false; }
+  });
+  listen('reconnect', 'click', async () => { try { await refreshWorkspace(); showToast('Connection restored. Your entries were kept.'); } catch (error) { showToast(error.message); } });
+  listen('member-search', 'input', populateFamilyOptions);
+  listen('member-existing', 'change', () => {
+    const person = records.find(record => record.id === $('member-existing').value);
+    $('member-confirm-link').checked = false;
+    $('member-name').readOnly = Boolean(person); $('member-age').readOnly = Boolean(person);
+    if (person) { assignField('member-name', nameOf(person)); assignField('member-age', ageFromBirthDate(person.birthDate)); }
+  });
+  listen('reserve-release', 'click', async () => {
+    if (mutationBusy || intake.reservation || !intake.assessment?.id) return;
+    mutationBusy = true; renderRelease(); intake.idempotencyKey ||= crypto.randomUUID();
+    try {
+      showError('release-error', '');
+      intake.reservation = await api('/api/releases', {method: 'POST', body: {assessmentId: intake.assessment.id, idempotencyKey: intake.idempotencyKey, goods: readActualGoods(), varianceReason: $('release-variance-reason').value.trim()}});
+      await refreshWorkspace(); showToast('Handover prepared and saved. Hand over the goods, then confirm receipt.');
+    } catch (error) { showError('release-error', error.message); }
+    finally { mutationBusy = false; renderRelease(); }
+  });
+  document.addEventListener('click', async event => {
+    const resume = event.target.closest('[data-resume-handover]');
+    if (resume) {
+      try { await refreshWorkspace(); } catch (error) { showToast(error.message); return; }
+      const item = pendingHandovers.find(row => row.id === resume.dataset.resumeHandover);
+      const record = records.find(row => row.id === item?.recordId);
+      if (!item || !record) return showToast('This handover was completed or cancelled at another counter.');
+      beginIntake('returning'); intake.recordId = record.id; intake.verifiedRecordId = record.id;
+      intake.fields = Object.fromEntries(Object.keys(FIELD_IDS).map(key => [key, record[key]])); intake.members = cloneMembers(record.members);
+      intake.verified = true; intake.detailsSaved = true; intake.profileConfirmed = true; intake.method = item.method;
+      intake.reservation = item; intake.readyAt = item.eligibilityConfirmedAt; intake.assessment = {eligible: true, status: 'ready', rules: []};
+      writeFields(); Object.entries(item.goods).forEach(([key, amount]) => assignField(`actual-${key}`, amount)); assignField('release-variance-reason', item.varianceReason);
+      showStep('release');
+    }
+    const receiptButton = event.target.closest('[data-saved-receipt]');
+    if (receiptButton) {
+      try { const receipt = await api(`/api/receipts/${encodeURIComponent(receiptButton.dataset.savedReceipt)}`); renderPrintableReceipt(receipt); window.print(); }
+      catch (error) { showToast(error.message); }
+    }
+  });
+  setInterval(() => { if (currentUser && !mutationBusy && !document.hidden) refreshWorkspace().catch(() => {}); }, 20000);
+
+  await initializeSession();
   writeFields(); renderCaptureMode(); renderAll(); routeFromHash(); syncSidebarAccess();
 })();

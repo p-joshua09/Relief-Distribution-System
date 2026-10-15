@@ -1,0 +1,23 @@
+{
+  "name": "relief-distribution-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Staff-operated relief distribution with PostgreSQL persistence",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.cjs",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.cjs",
+    "db:local": "node scripts/local-postgres.cjs",
+    "test": "node --env-file-if-exists=.env --test --test-concurrency=1 tests/api.test.cjs",
+    "test:browser": "node --env-file-if-exists=.env tests/persistent-workflow.test.cjs"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
+    "playwright": "^1.64.1"
+  }
+}
